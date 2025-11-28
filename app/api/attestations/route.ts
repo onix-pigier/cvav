@@ -31,7 +31,7 @@ export const POST = async (request: Request) => {
       bulletinScanne
     } = await request.json();
 
-    // ✅ VALIDATION DES CHAMPS REQUIS
+    //  VALIDATION DES CHAMPS REQUIS
     const champsRequis = {
       prenom,
       nom,
@@ -52,7 +52,7 @@ export const POST = async (request: Request) => {
       }, { status: 400 });
     }
 
-    // ✅ VALIDATION DE L'ANNÉE (doit être dans le passé)
+    //  VALIDATION DE L'ANNÉE (doit être dans le passé)
     const anneeActuelle = new Date().getFullYear();
     if (anneeFinFormation >= anneeActuelle) {
       return NextResponse.json({ 
@@ -60,7 +60,7 @@ export const POST = async (request: Request) => {
       }, { status: 400 });
     }
 
-    // ✅ VÉRIFICATION ABAC : L'utilisateur ne peut créer que dans sa paroisse/secteur
+    //  VÉRIFICATION ABAC : L'utilisateur ne peut créer que dans sa paroisse/secteur
     if (currentUser.role.nom !== "Admin") {
       if (paroisse !== currentUser.paroisse || secteur !== currentUser.secteur) {
         return NextResponse.json({ 
@@ -69,7 +69,7 @@ export const POST = async (request: Request) => {
       }
     }
 
-    // ✅ CRÉATION DE LA DEMANDE
+    //  CRÉATION DE LA DEMANDE
     const nouvelleDemande = await DemandeAttestation.create({
       utilisateur: currentUser._id,
       prenom,
@@ -82,7 +82,7 @@ export const POST = async (request: Request) => {
       statut: "en_attente"
     });
 
-    // ✅ LOG D'AUDIT
+    //  LOG D'AUDIT
     await action.create({
       admin: currentUser._id,
       action: "creer_demande_attestation",
@@ -95,7 +95,7 @@ export const POST = async (request: Request) => {
       }
     });
 
-    // ✅ NOTIFICATION POUR L'ADMIN - Nouvelle demande
+    //  NOTIFICATION POUR L'ADMIN - Nouvelle demande
     const roleAdmin = await Role.findOne({ nom: "Admin" });
     if (roleAdmin) {
       const admins = await Utilisateur.find({ role: roleAdmin._id });
@@ -149,7 +149,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "Accès refusé." }, { status: 403 });
     }
 
-    // ✅ CONSTRUCTION DU FILTRE ABAC
+    //  CONSTRUCTION DU FILTRE ABAC
     let filtre = {};
     
     if (currentUser.role.nom === "Admin") {
@@ -216,14 +216,14 @@ export async function PATCH(request: Request) {
       }, { status: 404 });
     }
 
-    // ✅ VALIDATION: Pour une validation, le numéro d'attestation est requis
+    //  VALIDATION: Pour une validation, le numéro d'attestation est requis
     if (statut === "valide" && !numeroAttestation) {
       return NextResponse.json({ 
         message: "Le numéro d'attestation est requis pour valider une demande." 
       }, { status: 400 });
     }
 
-    // ✅ MISE À JOUR AVEC VALIDATION
+    //  MISE À JOUR AVEC VALIDATION
     const updateData: any = {
       statut,
       validePar: currentUser._id,
@@ -254,7 +254,7 @@ export async function PATCH(request: Request) {
     .populate("validePar", "prenom nom")
     .populate("fichierAttestationPDF", "nom url");
 
-    // ✅ NOTIFICATION POUR L'UTILISATEUR - Réponse admin
+    //  NOTIFICATION POUR L'UTILISATEUR - Réponse admin
     await Notification.create({
       utilisateur: demandeMaj.utilisateur._id,
       titre: `Demande d'attestation ${statut === 'valide' ? 'approuvée' : 'rejetée'}`,
@@ -263,7 +263,7 @@ export async function PATCH(request: Request) {
       type: statut === 'valide' ? "succes" : "erreur"
     });
 
-    // ✅ LOG D'AUDIT
+    //  LOG D'AUDIT
     await action.create({
       admin: currentUser._id,
       action: `${statut}_demande_attestation`,

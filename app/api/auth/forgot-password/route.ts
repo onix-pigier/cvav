@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     const token = randomBytes(32).toString('hex');
     const expireLe = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 heures
 
-    // 📝 Créer la demande
+    //  Créer la demande
     const demandeReset = await DemandeResetMotDePasse.create({
       utilisateur: utilisateur._id,
       token,

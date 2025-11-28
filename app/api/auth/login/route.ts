@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
 
-    // ✅ Connexion réussie - réinitialiser les tentatives
+    //  Connexion réussie - réinitialiser les tentatives
     await utilisateur.reinitialiserTentativesConnexion();
 
     // 🔑 Générer le token JWT
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
           signOptions
         );
 
-    // 📦 Préparer la réponse
+    //  Préparer la réponse
     const userResponse = utilisateur.toJSON();
 
     const response = NextResponse.json({

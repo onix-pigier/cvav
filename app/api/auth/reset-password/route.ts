@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 📝 Récupérer la demande
+    //  Récupérer la demande
     const demande = await DemandeResetMotDePasse.findById(demandeId)
       .populate("utilisateur", "prenom nom email");
 
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 🔄 Traiter la demande
+    //  Traiter la demande
     demande.statut = actionAdmin;
     demande.traitePar = currentUser._id;
     demande.dateTraitement = new Date();
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       });
 
     } else {
-      // 📝 Enregistrer la raison du rejet
+      //  Enregistrer la raison du rejet
 }
 
 await demande.save();

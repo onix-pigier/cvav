@@ -28,14 +28,14 @@ export const POST = async (request: Request) => {
       }, { status: 400 });
     }
 
-    // ✅ VALIDATION DU TYPE
+    //  VALIDATION DU TYPE
     if (!["courrier", "bulletin", "autre"].includes(type)) {
       return NextResponse.json({ 
         message: "Type de fichier invalide." 
       }, { status: 400 });
     }
 
-    // ✅ VALIDATION TAILLE (10MB max)
+    //  VALIDATION TAILLE (10MB max)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json({ 
@@ -43,11 +43,11 @@ export const POST = async (request: Request) => {
       }, { status: 400 });
     }
 
-    // ✅ CONVERSION EN BUFFER
+    //  CONVERSION EN BUFFER
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // ✅ GÉNÉRATION URL/SAUVEGARDE (à adapter selon votre système de stockage)
+    //  GÉNÉRATION URL/SAUVEGARDE (à adapter selon votre système de stockage)
     // Exemple avec stockage local - à remplacer par votre service (AWS S3, etc.)
     const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
     const fileUrl = `/uploads/${fileName}`;
@@ -61,7 +61,7 @@ export const POST = async (request: Request) => {
       url: fileUrl
     });
 
-    // ✅ CRÉATION EN BASE
+    //  CRÉATION EN BASE
     const nouveauFichier = await Fichier.create({
       url: fileUrl,
       nom: nom,
@@ -70,7 +70,7 @@ export const POST = async (request: Request) => {
       taille: file.size
     });
 
-    // ✅ LOG D'AUDIT
+    //  LOG D'AUDIT
     await action.create({
       admin: currentUser._id,
       action: "uploader_fichiers",
@@ -117,7 +117,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    // ✅ CONSTRUCTION FILTRES
+    //  CONSTRUCTION FILTRES
     let filtre: any = {};
     
     // Filtre par type

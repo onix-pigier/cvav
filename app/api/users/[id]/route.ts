@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Utilisateur from "@/models/utilisateur";
-import actionModel from "@/models/action";
+import LogAction from "@/models/action";
 import { getUserFromToken } from "@/utils/auth";
 
 // ──────────────────────────────────────────────
@@ -9,18 +9,22 @@ import { getUserFromToken } from "@/utils/auth";
 // ──────────────────────────────────────────────
 export async function GET(
   request: Request, 
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } //  CORRECTION NEXT.JS 14
 ) {
   try {
+    //  CORRECTION CRITIQUE : AWAITER LES PARAMS
+    const { id } = await params;
+    const userId = id;
+    
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    // ✅ VÉRIFICATION STRICTE: Seul l'admin peut voir un utilisateur
-    if (!currentUser || currentUser.role.nom !== "Admin") {
+    // CORRECTION : Vérification insensible à la casse
+    if (!currentUser || currentUser.role.nom?.toLowerCase() !== "admin") {
+      console.log(' Accès refusé GET - Rôle:', currentUser?.role?.nom);
       return NextResponse.json({ message: "Accès refusé. Admin requis." }, { status: 403 });
     }
 
-    const userId = params.id;
     const user = await Utilisateur.findById(userId).populate("role").select("-motDePasse");
     
     if (!user) {
@@ -42,19 +46,35 @@ export async function GET(
 // ──────────────────────────────────────────────
 export async function PATCH(
   request: Request, 
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } //  CORRECTION NEXT.JS 14
 ) {
   try {
+    //  CORRECTION CRITIQUE : AWAITER LES PARAMS
+    const { id } = await params;
+    const userId = id;
+    
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    // ✅ VÉRIFICATION STRICTE: Seul l'admin peut modifier un utilisateur
-    if (!currentUser || currentUser.role.nom !== "Admin") {
+    // CORRECTION : Vérification insensible à la casse
+    if (!currentUser || currentUser.role.nom?.toLowerCase() !== "admin") {
+      console.log(' Accès refusé PATCH - Rôle:', currentUser?.role?.nom);
       return NextResponse.json({ message: "Accès refusé. Admin requis." }, { status: 403 });
     }
+    
 
-    const userId = params.id;
     const { prenom, nom, email, roleId, telephone, paroisse, secteur } = await request.json();
+
+    console.log(" Données reçues modification utilisateur:", { 
+      prenom, nom, email, roleId, telephone, paroisse, secteur, userId
+    });
+
+    // EMPÊCHER AUTO MODIFICATION DU RÔLE ADMIN 
+    if (roleId && userId === currentUser._id.toString() && roleId !== currentUser.role._id.toString()) {
+      return NextResponse.json({ 
+        message: "Vous ne pouvez pas modifier votre propre rôle." 
+      }, { status: 403 });
+    }
 
     const user = await Utilisateur.findById(userId);
     if (!user) {
@@ -68,7 +88,7 @@ export async function PATCH(
       } 
     }
 
-    // ✅ MISE À JOUR SÉCURISÉE - Admin a tous les droits
+    // MISE À JOUR SÉCURISÉE
     const updates: any = {};
     if (prenom) updates.prenom = prenom;
     if (nom) updates.nom = nom;
@@ -78,14 +98,20 @@ export async function PATCH(
     if (paroisse) updates.paroisse = paroisse;
     if (secteur) updates.secteur = secteur;
 
+    console.log(" Updates à appliquer:", updates);
+
     const updatedUser = await Utilisateur.findByIdAndUpdate(
       userId, 
       updates, 
       { new: true, runValidators: true }
     ).select("-motDePasse");
 
-    // ✅ LOG D'AUDIT
-    await actionModel.create({
+    if (!updatedUser) {
+      return NextResponse.json({ message: "Erreur lors de la mise à jour." }, { status: 500 });
+    }
+
+    // LOG D'AUDIT
+    await LogAction.create({
       admin: currentUser._id,
       action: "modifier_utilisateur",
       module: "Utilisateur",
@@ -116,36 +142,42 @@ export async function PATCH(
 // ──────────────────────────────────────────────
 export async function DELETE(
   request: Request, 
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } //  CORRECTION NEXT.JS 14
 ) {
   try {
+    //  CORRECTION CRITIQUE : AWAITER LES PARAMS
+    const { id } = await params;
+    const userId = id;
+    
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    // ✅ VÉRIFICATION STRICTE: Seul l'admin peut supprimer un utilisateur
-    if (!currentUser || currentUser.role.nom !== "Admin") {
+    // CORRECTION : Vérification insensible à la casse
+    if (!currentUser || currentUser.role.nom?.toLowerCase() !== "admin") {
+      console.log(' Accès refusé DELETE - Rôle:', currentUser?.role?.nom);
       return NextResponse.json({ message: "Accès refusé. Admin requis." }, { status: 403 });
     }
 
-    const userId = params.id;
     const user = await Utilisateur.findById(userId);
     
     if (!user) {
       return NextResponse.json({ message: "Utilisateur non trouvé." }, { status: 404 });
     }
 
-    // ✅ EMPÊCHER l'auto-suppression
+    console.log("Tentative suppression utilisateur:", user.email);
+
+    // EMPÊCHER l'auto-suppression
     if (userId === currentUser._id.toString()) {
       return NextResponse.json({ 
         message: "Vous ne pouvez pas supprimer votre propre compte." 
       }, { status: 403 });
     }
 
-    // ✅ SUPPRESSION SÉCURISÉE
+    // SUPPRESSION SÉCURISÉE
     await Utilisateur.findByIdAndDelete(userId);
 
-    // ✅ LOG D'AUDIT
-    await actionModel.create({
+    // LOG D'AUDIT
+    await LogAction.create({
       admin: currentUser._id,
       action: "supprimer_utilisateur",
       module: "Utilisateur",

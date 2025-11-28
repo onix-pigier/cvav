@@ -1,193 +1,7 @@
-// import { NextResponse } from "next/server";
-// import { connectDB } from "@/lib/db";
-// import Utilisateur from "@/backend/models/utilisateur";
-// import actionModel from "@/backend/models/action";
-// import { voirPermission } from "@/middleware/permission";
-// import { getUserFromToken } from "@/backend/utils/auth"; // fonction JWT/session
-
-// // ──────────────────────────────────────────────
-// // POST → créer un utilisateur
-// // ──────────────────────────────────────────────
-// export const POST = async (request: Request) => {
-//   try {
-//     await connectDB();
-//     const currentUser = await getUserFromToken(request);
-//     if (!currentUser || !voirPermission(currentUser, "creer_utilisateur")) {
-//       return NextResponse.json({ message: "Accès refusé." }, { status: 403 });
-//     }
-
-//     const { prenom, nom, email, motDePasse, roleId, telephone, paroisse, secteur  } = await request.json();
-
-//     if (!prenom || !nom || !email || !motDePasse || !roleId || !paroisse || !secteur ) {
-//       return NextResponse.json({ message: "Champs requis manquants." }, { status: 400 });
-//     }
-
-//     const userExiste = await Utilisateur.findOne({ email });
-//     if (userExiste) return NextResponse.json({ message: "Email déjà utilisé." }, { status: 400 });
-
-//     const user = await Utilisateur.create({
-//       prenom,
-//       nom,
-//       email,
-//       motDePasse,
-//       role: roleId,
-//       telephone,
-//       paroisse,
-//       secteur,
-//       creerPar: currentUser._id,
-//     });
-
-//     // log action
-//     await actionModel.create({
-//       admin: currentUser._id,
-//       action: "creer_utilisateur",
-//       module: "Utilisateur",
-//       donnees: { userId: user._id }
-//     });
-
-//     return NextResponse.json(user, { status: 201 });
-
-//   } catch (error) {
-//     return NextResponse.json({ message: "Erreur lors de la création.", error }, { status: 500 });
-//   }
-// };
-
-// // ──────────────────────────────────────────────
-// // PATCH → modifier un utilisateur
-// // ──────────────────────────────────────────────
-// export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-//   try {
-//     await connectDB();
-//     const currentUser = await getUserFromToken(request);
-//     if (!currentUser || !voirPermission(currentUser, "modifier_utilisateur")) {
-//       return NextResponse.json({ message: "Accès refusé." }, { status: 403 });
-//     }
-
-//     const userId = params.id;
-//     const { prenom, nom, email, roleId, telephone, paroisse, section } = await request.json();
-
-//     const user = await Utilisateur.findById(userId);
-//     if (!user) return NextResponse.json({ message: "Utilisateur non trouvé." }, { status: 404 });
-
-//     // ABAC : restriction paroisse pour non-Admins
-//     if (currentUser.role.nom !== "Admin" && user.paroisse !== currentUser.paroisse) {
-//       return NextResponse.json({ message: "Accès refusé à cette paroisse." }, { status: 403 });
-//     }
-
-//     user.prenom = prenom ?? user.prenom;
-//     user.nom = nom ?? user.nom;
-//     user.email = email ?? user.email;
-//     user.role = roleId ?? user.role;
-//     user.telephone = telephone ?? user.telephone;
-//     user.paroisse = paroisse ?? user.paroisse;
-//     user.section = section ?? user.section;
-
-//     await user.save();
-
-//     await actionModel.create({
-//       admin: currentUser._id,
-//       action: "modifier_utilisateur",
-//       module: "Utilisateur",
-//       donnees: { userId: user._id }
-//     });
-
-//     return NextResponse.json(user, { status: 200 });
-
-//   } catch (error) {
-//     return NextResponse.json({ message: "Erreur lors de la mise à jour.", error }, { status: 500 });
-//   }
-// }
-
-// // ──────────────────────────────────────────────
-// // DELETE → supprimer un utilisateur
-// // ──────────────────────────────────────────────
-// export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-//   try {
-//     await connectDB();
-//     const currentUser = await getUserFromToken(request);
-//     if (!currentUser || !voirPermission(currentUser, "supprimer_utilisateur")) {
-//       return NextResponse.json({ message: "Accès refusé." }, { status: 403 });
-//     }
-
-//     const userId = params.id;
-//     const user = await Utilisateur.findById(userId);
-//     if (!user) return NextResponse.json({ message: "Utilisateur non trouvé." }, { status: 404 });
-
-//     // ABAC : restriction paroisse
-//     if (currentUser.role.nom !== "Admin" && user.paroisse !== currentUser.paroisse) {
-//       return NextResponse.json({ message: "Accès refusé à cette paroisse." }, { status: 403 });
-//     }
-
-//     await user.remove();
-
-//     await actionModel.create({
-//       admin: currentUser._id,
-//       action: "supprimer_utilisateur",
-//       module: "Utilisateur",
-//       donnees: { userId: user._id }
-//     });
-
-//     return NextResponse.json({ message: "Utilisateur supprimé." }, { status: 200 });
-
-//   } catch (error) {
-//     return NextResponse.json({ message: "Erreur lors de la suppression.", error }, { status: 500 });
-//   }
-// }
-
-// // ──────────────────────────────────────────────
-// // GET → récupérer un utilisateur par ID
-// // ──────────────────────────────────────────────
-// export async function GET(request: Request, { params }: { params: { id: string } }) {
-//   try {
-//     await connectDB();
-//     const currentUser = await getUserFromToken(request);
-//     if (!currentUser || !voirPermission(currentUser, "voir_utilisateur")) {
-//       return NextResponse.json({ message: "Accès refusé." }, { status: 403 });
-//     }
-
-//     const userId = params.id;
-//     const user = await Utilisateur.findById(userId).populate("role");
-//     if (!user) return NextResponse.json({ message: "Utilisateur non trouvé." }, { status: 404 });
-
-//     // ABAC : restriction paroisse
-//     if (currentUser.role.nom !== "Admin" && user.paroisse !== currentUser.paroisse) {
-//       return NextResponse.json({ message: "Accès refusé à cette paroisse." }, { status: 403 });
-//     }
-
-//     return NextResponse.json(user);
-
-//   } catch (error) {
-//     return NextResponse.json({ message: "Erreur lors de la recherche.", error }, { status: 500 });
-//   }
-// }
-
-// // ──────────────────────────────────────────────
-// // GETall → lister tous les utilisateurs
-// // ──────────────────────────────────────────────
-// export async function GETall(request: Request) {
-//   try {
-//     await connectDB();
-//     const currentUser = await getUserFromToken(request);
-//     if (!currentUser || !voirPermission(currentUser, "voir_utilisateur")) {
-//       return NextResponse.json({ message: "Accès refusé." }, { status: 403 });
-//     }
-
-//     const query: any = {};
-//     if (currentUser.role.nom !== "Admin") {
-//       query.paroisse = currentUser.paroisse; // restriction ABAC
-//     }
-
-//     const utilisateurs = await Utilisateur.find(query).populate("role");
-//     return NextResponse.json(utilisateurs);
-
-//   } catch (error) {
-//     return NextResponse.json({ message: "Erreur serveur.", error }, { status: 500 });
-//   }
-// }
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Utilisateur from "@/models/utilisateur";
-import actionModel from "@/models/action";
+import LogAction from "@/models/action";
 import { getUserFromToken } from "@/utils/auth";
 import { emailTemplates, sendEmail } from "@/lib/email";
 import { randomBytes } from "crypto";
@@ -195,23 +9,47 @@ import { randomBytes } from "crypto";
 // ──────────────────────────────────────────────
 // POST → Créer un utilisateur (Admin seulement)
 // ──────────────────────────────────────────────
+
 export const POST = async (request: Request) => {
   try {
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    // ✅ VÉRIFICATION STRICTE: Seul l'admin peut créer des utilisateurs
-    if (!currentUser || currentUser.role.nom !== "Admin") {
+    console.log('=== DEBUG USER ROLE POST ===');
+    console.log('User:', currentUser?.email);
+    console.log('Role object:', currentUser?.role);
+    console.log('Role nom:', currentUser?.role?.nom);
+    console.log('=======================');
+    
+    if (!currentUser || currentUser.role.nom?.toLowerCase() !== "admin") {
+      console.log(' Accès refusé POST - Rôle:', currentUser?.role?.nom);
       return NextResponse.json({ message: "Accès refusé. Admin requis." }, { status: 403 });
     }
 
     const { prenom, nom, email, motDePasse, roleId, telephone, paroisse, secteur } = await request.json();
 
-    // ✅ VALIDATION COMPLÈTE
-    const champsRequis = { prenom, nom, email, motDePasse, roleId, paroisse, secteur };
+    //  CORRECTION : motDePasse n'est plus requis car généré automatiquement
+    const champsRequis = { 
+      prenom, 
+      nom, 
+      email, 
+      // motDePasse, // ← RETIRÉ des champs requis
+      roleId, 
+      paroisse, 
+      secteur 
+    };
+    
     const champsManquants = Object.entries(champsRequis)
-      .filter(([_, value]) => !value)
+      .filter(([key, value]) => {
+        const estManquant = !value || value.toString().trim() === '';
+        if (estManquant) {
+          console.log(` Champ manquant: ${key} =`, value);
+        }
+        return estManquant;
+      })
       .map(([key]) => key);
+
+    console.log(' CHAMPS MANQUANTS TROUVÉS:', champsManquants);
 
     if (champsManquants.length > 0) {
       return NextResponse.json({ 
@@ -220,41 +58,53 @@ export const POST = async (request: Request) => {
       }, { status: 400 });
     }
 
-    // ✅ VÉRIFICATION EMAIL EXISTANT
+    console.log(' TOUS LES CHAMPS SONT PRÉSENTS');
+
+    // VÉRIFICATION EMAIL EXISTANT
     const userExiste = await Utilisateur.findOne({ email });
     if (userExiste) {
+      console.log(' Email déjà utilisé:', email);
       return NextResponse.json({ message: "Email déjà utilisé." }, { status: 400 });
     }
-     const motDePasseTemporaire =  randomBytes(8).toString('hex');
+    
+    //  GÉNÉRATION AUTOMATIQUE DU MOT DE PASSE
+    const motDePasseTemporaire = randomBytes(8).toString('hex');
+    console.log('🔑 Mot de passe temporaire généré:', motDePasseTemporaire);
 
-    // ✅ CRÉATION SÉCURISÉE
+    // CRÉATION SÉCURISÉE
     const user = await Utilisateur.create({
       prenom,
       nom,
       email,
-      motDePasse : motDePasseTemporaire,
+      motDePasse: motDePasseTemporaire, // ← Toujours utilisé mais généré auto
       role: roleId,
       telephone,
       paroisse,
       secteur,
       creerPar: currentUser._id,
-      doitChangerMotDePasse: true
+      doitChangerMotDePasse: true // ← FORCER le changement au 1er login
     });
 
-  
+    console.log(' Utilisateur créé en base:', user.email);
 
-    //email de bienvenue avec le mot de passe temporaire
-   await sendEmail({
-  to: user.email,
-  ...emailTemplates.welcomeUser({
-    prenom: user.prenom,
-    email: user.email,
-    motDePasseTemporaire: motDePasseTemporaire
-  })
-});
+    // Email de bienvenue avec le mot de passe temporaire
+    try {
+      await sendEmail({
+        to: user.email,
+        ...emailTemplates.welcomeUser({
+          prenom: user.prenom,
+          email: user.email,
+          motDePasseTemporaire: motDePasseTemporaire
+        })
+      });
+      console.log('📧 Email de bienvenue envoyé');
+    } catch (emailError) {
+      console.warn('⚠️ Erreur envoi email:', emailError);
+      // On continue même si l'email échoue
+    }
 
     // log action
-    await actionModel.create({
+    await LogAction.create({
       admin: currentUser._id,
       action: "creer_utilisateur",
       module: "Utilisateur",
@@ -265,6 +115,8 @@ export const POST = async (request: Request) => {
         secteur: user.secteur 
       }
     });
+
+    console.log(' Log d audit créé');
 
     return NextResponse.json(
       { 
@@ -282,16 +134,12 @@ export const POST = async (request: Request) => {
     );
 
   } catch (error) {
-    console.error("Erreur création utilisateur:", error);
+    console.error(" Erreur création utilisateur:", error);
     return NextResponse.json({ 
       message: "Erreur lors de la création." 
     }, { status: 500 });
   }
 };
-
-// ──────────────────────────────────────────────
-// GET → Lister tous les utilisateurs (Admin seulement)
-// ──────────────────────────────────────────────
 // ──────────────────────────────────────────────
 // GET → Lister tous les utilisateurs avec pagination
 // ──────────────────────────────────────────────
@@ -300,20 +148,21 @@ export async function GET(request: Request) {
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    if (!currentUser || currentUser.role.nom !== "Admin") {
+    if (!currentUser || currentUser.role.nom?.toLowerCase() !== "admin") {
+      console.log(' Accès refusé GET - Rôle:', currentUser?.role?.nom);
       return NextResponse.json({ message: "Accès refusé. Admin requis." }, { status: 403 });
     }
 
-    // ✅ RÉCUPÉRATION DES PARAMÈTRES DE PAGINATION
+    // RÉCUPÉRATION DES PARAMÈTRES DE PAGINATION
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
 
-    // ✅ CALCUL PAGINATION
+    // CALCUL PAGINATION
     const skip = (page - 1) * limit;
 
-    // ✅ FILTRE DE RECHERCHE (optionnel)
+    // FILTRE DE RECHERCHE (optionnel)
     const filter: any = {};
     if (search) {
       filter.$or = [
@@ -323,7 +172,7 @@ export async function GET(request: Request) {
       ];
     }
 
-    // ✅ REQUÊTE AVEC PAGINATION
+    // REQUÊTE AVEC PAGINATION
     const [utilisateurs, total] = await Promise.all([
       Utilisateur.find(filter)
         .populate("role")
@@ -335,7 +184,7 @@ export async function GET(request: Request) {
       Utilisateur.countDocuments(filter)
     ]);
 
-    // ✅ RÉPONSE AVEC MÉTADATAS
+    // RÉPONSE AVEC MÉTADATAS
     return NextResponse.json({
       data: utilisateurs,
       pagination: {

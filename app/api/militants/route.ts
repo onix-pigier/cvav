@@ -4,6 +4,7 @@ import { voirPermission } from "@/utils/permission"; // Assurez-vous que cette f
 import { getUserFromToken } from "@/utils/auth";
 import militant from '@/models/militant'; // Modèle Militant
 import action from '@/models/action';     // Modèle Action (Journal)
+import { Console } from "console";
 
 // ──────────────────────────────────────────────
 // UTILITAIRES ABAC CONSOLIDÉS
@@ -14,15 +15,29 @@ import action from '@/models/action';     // Modèle Action (Journal)
  * - Admin: retourne {} (Accès à toutes les données).
  * - Autre: retourne { paroisse: P, secteur: S } (Accès limité à sa zone).
  */
+
 function getFiltreABAC(utilisateur: any) {
-  // L'Admin a le "full pass" et ne subit aucun filtre
-  if (utilisateur.role.nom === "Admin") return {};
+  console.log(' Utilisateur dans getFiltreABAC:', {
+    id: utilisateur?._id,
+    role: utilisateur?.role?.nom,
+    paroisse: utilisateur?.paroisse,
+    secteur: utilisateur?.secteur
+  });
+
   
-  // Les autres utilisateurs sont limités à leur zone
-  return {
-    paroisse: utilisateur.paroisse,
-    secteur: utilisateur.secteur
+    if (utilisateur.role.nom === "Admin") {
+    console.log("Utilisateur Admin détecté : accès complet aux militants.");
+    return {};
+}
+
+// Pour les autres rôles, restreindre par paroisse et secteur
+  const filtre = {
+    paroisse: utilisateur?.paroisse,
+    secteur: utilisateur?.secteur
   };
+
+  console.log("Filtre ABAC généré pour l'utilisateur :", filtre);
+  return filtre;
 }
 
 // ──────────────────────────────────────────────
@@ -114,45 +129,111 @@ export const POST = async (request: Request) => {
 // ──────────────────────────────────────────────
 export async function GET(request: Request) {
   try {
+    console.log('🟢 Début GET /api/militants');
+    
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    // 1. Vérification RBAC
-    if (!currentUser || !voirPermission(currentUser, "voir_militants")) {
+    console.log('👤 Utilisateur connecté:', {
+      id: currentUser?._id,
+      role: currentUser?.role?.nom,
+      paroisse: currentUser?.paroisse,
+      secteur: currentUser?.secteur
+    });
+
+    // 1. Vérification RBAC avec debugging
+    if (!currentUser) {
+      console.log(' Aucun utilisateur connecté');
+      return NextResponse.json({ message: "Accès refusé. Utilisateur non connecté." }, { status: 403 });
+    }
+
+    if (!voirPermission(currentUser, "voir_militants")) {
+      console.log(' Permission manquante pour voir_militants');
       return NextResponse.json({ message: "Accès refusé. Permission manquante." }, { status: 403 });
     }
+
+    console.log(' Permissions OK');
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
     const search = searchParams.get("search") || "";
+    const secteur = searchParams.get("secteur") || "";
+    const grade = searchParams.get("grade") || "";
     const skip = (page - 1) * limit;
 
-    // 2. FILTRE ABAC IMPLICITE : Limite les résultats au domaine de l'utilisateur
-    // Ce filtre est la base de toutes les requêtes (comptage et recherche)
-    const filtre: any = getFiltreABAC(currentUser);
+    console.log('📋 Paramètres de requête:', { page, limit, search, secteur, grade });
 
-    // 3. Ajout de la recherche textuelle si fournie
+    // 2. FILTRE ABAC IMPLICITE
+    const filtreABAC = getFiltreABAC(currentUser);
+    let filtre: any = { ...filtreABAC };
+
+    console.log(' Filtre ABAC initial:', filtre);
+
+    // 3. Ajout des filtres optionnels
+    if (secteur) {
+      filtre.secteur = secteur;
+    }
+
+    if (grade) {
+      filtre.grade = grade;
+    }
+
+    // 4. Recherche textuelle
     if (search) {
       filtre.$or = [
         { nom: { $regex: search, $options: "i" } },
         { prenom: { $regex: search, $options: "i" } },
         { quartier: { $regex: search, $options: "i" } },
-        { paroisse: { $regex: search, $options: "i" } }, // Ajout Paroisse/Secteur pour l'Admin
+        { paroisse: { $regex: search, $options: "i" } },
         { secteur: { $regex: search, $options: "i" } },
       ];
-      // Note: MongoDB applique le $or APRÈS les autres filtres (ABAC), ce qui est correct.
     }
 
+    console.log(' Filtre final appliqué:', JSON.stringify(filtre, null, 2));
+
+    // 5. Exécution des requêtes
     const [militants, total] = await Promise.all([
       militant.find(filtre)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit),
+        .limit(limit)
+        .lean(), // Utilisez lean() pour de meilleures performances
       militant.countDocuments(filtre)
     ]);
 
-    return NextResponse.json({ 
+    console.log('📊 Résultats:', {
+      militantsTrouves: militants.length,
+      total: total,
+      filtre: filtre
+    });
+
+    // 6. Statistiques (optionnel)
+    try {
+      const [parSecteur, parGrade] = await Promise.all([
+        militant.aggregate([
+          { $match: filtreABAC }, // Utiliser filtreABAC pour les stats globales
+          { $group: { _id: "$secteur", count: { $sum: 1 } } }
+        ]),
+        militant.aggregate([
+          { $match: filtreABAC },
+          { $group: { _id: "$grade", count: { $sum: 1 } } }
+        ])
+      ]);
+
+      const stats = {
+        total: total,
+        parSecteur: Object.fromEntries(parSecteur.map(s => [s._id, s.count])),
+        parGrade: Object.fromEntries(parGrade.map(g => [g._id, g.count])),
+      };
+
+      console.log('📈 Statistiques calculées:', stats);
+    } catch (statsError) {
+      console.warn('⚠️ Erreur lors du calcul des statistiques:', statsError);
+      // Continuer sans les stats
+    }
+
+    const response = NextResponse.json({ 
       data: militants,
       pagination: {
         page,
@@ -162,10 +243,28 @@ export async function GET(request: Request) {
       }
     });
 
+    // Headers CORS pour le développement
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    return response;
+
   } catch (error) {
-    console.error("Erreur recherche militants:", error);
+    console.error(" Erreur recherche militants:", error);
+    
+    // Log détaillé de l'erreur
+    if (error instanceof Error) {
+      console.error('📌 Détails erreur:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
+
     return NextResponse.json({ 
-      message: "Erreur serveur lors de la recherche de la liste." 
+      message: "Erreur serveur lors de la recherche de la liste.",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     }, { status: 500 });
   }
 }

@@ -29,7 +29,7 @@ export async function GET(
       }, { status: 404 });
     }
 
-    // ✅ VÉRIFICATION PERMISSIONS
+    //  VÉRIFICATION PERMISSIONS
     if (currentUser.role.nom !== "Admin" && 
         fichier.uploader._id.toString() !== currentUser._id.toString()) {
       return NextResponse.json({ 
@@ -37,7 +37,7 @@ export async function GET(
       }, { status: 403 });
     }
 
-    // ✅ LOGIQUE DE TÉLÉCHARGEMENT
+    //  LOGIQUE DE TÉLÉCHARGEMENT
     // Ici, vous intégrerez la récupération physique du fichier
     // selon votre système de stockage (AWS S3, système de fichiers, etc.)
     

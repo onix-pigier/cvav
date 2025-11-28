@@ -30,7 +30,7 @@ export async function GET(
       }, { status: 404 });
     }
 
-    // ✅ VÉRIFICATION PERMISSIONS
+    //  VÉRIFICATION PERMISSIONS
     if (currentUser.role.nom !== "Admin" && 
         fichier.uploader._id.toString() !== currentUser._id.toString()) {
       return NextResponse.json({ 
@@ -73,7 +73,7 @@ export async function PUT(
       }, { status: 404 });
     }
 
-    // ✅ VÉRIFICATION PERMISSIONS
+    //  VÉRIFICATION PERMISSIONS
     if (currentUser.role.nom !== "Admin" && 
         fichier.uploader.toString() !== currentUser._id.toString()) {
       return NextResponse.json({ 
@@ -81,7 +81,7 @@ export async function PUT(
       }, { status: 403 });
     }
 
-    // ✅ MISE À JOUR
+    //  MISE À JOUR
     const updates: any = {};
     if (nom) updates.nom = nom;
     if (type && ["courrier", "bulletin", "autre"].includes(type)) {
@@ -94,7 +94,7 @@ export async function PUT(
       { new: true, runValidators: true }
     ).populate("uploader", "prenom nom email");
 
-    // ✅ LOG D'AUDIT
+    //  LOG D'AUDIT
     await action.create({
       admin: currentUser._id,
       action: "modifier_fichier",
@@ -145,7 +145,7 @@ export async function DELETE(
       }, { status: 404 });
     }
 
-    // ✅ VÉRIFICATION PERMISSIONS
+    //  VÉRIFICATION PERMISSIONS
     if (currentUser.role.nom !== "Admin" && 
         fichier.uploader.toString() !== currentUser._id.toString()) {
       return NextResponse.json({ 
@@ -153,14 +153,14 @@ export async function DELETE(
       }, { status: 403 });
     }
 
-    // ✅ SUPPRESSION DU FICHIER (logique de suppression physique à implémenter)
+    //  SUPPRESSION DU FICHIER (logique de suppression physique à implémenter)
     // Ici, vous intégrerez la suppression physique selon votre système de stockage
     console.log('Fichier à supprimer physiquement:', fichier.url);
 
-    // ✅ SUPPRESSION EN BASE
+    //  SUPPRESSION EN BASE
     await Fichier.findByIdAndDelete(fichierId);
 
-    // ✅ LOG D'AUDIT
+    //  LOG D'AUDIT
     await action.create({
       admin: currentUser._id,
       action: "supprimer_fichiers",

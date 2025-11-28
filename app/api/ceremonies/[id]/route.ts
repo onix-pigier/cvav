@@ -32,7 +32,7 @@ export async function GET(
       }, { status: 404 });
     }
 
-    // ✅ VÉRIFICATION ABAC
+    //  VÉRIFICATION ABAC
     if (currentUser.role.nom !== "Admin") {
       const estProprietaire = demande.utilisateur._id.toString() === currentUser._id.toString();
       const memeSecteur = demande.Secteur === currentUser.secteur;
@@ -79,7 +79,7 @@ export async function PUT(
       }, { status: 404 });
     }
 
-    // ✅ VÉRIFICATION ABAC : Seul le propriétaire peut modifier (et seulement si en attente)
+    //  VÉRIFICATION ABAC : Seul le propriétaire peut modifier (et seulement si en attente)
     const estProprietaire = demande.utilisateur.toString() === currentUser._id.toString();
     
     if (!estProprietaire) {
@@ -107,7 +107,7 @@ export async function PUT(
       courrierScanne
     } = await request.json();
 
-    // ✅ VALIDATION ABAC : L'utilisateur ne peut modifier que vers son secteur et paroisse
+    //  VALIDATION ABAC : L'utilisateur ne peut modifier que vers son secteur et paroisse
     if (currentUser.role.nom !== "Admin") {
       if (Secteur && Secteur !== currentUser.secteur) {
         return NextResponse.json({ 
@@ -122,7 +122,7 @@ export async function PUT(
       }
     }
 
-    // ✅ VALIDATION DE LA DATE si modification
+    //  VALIDATION DE LA DATE si modification
     if (dateCeremonie) {
       const dateCeremonieObj = new Date(dateCeremonie);
       const aujourdhui = new Date();
@@ -135,7 +135,7 @@ export async function PUT(
       }
     }
 
-    // ✅ MISE À JOUR
+    //  MISE À JOUR
     const updates: any = {};
     if (Secteur) updates.Secteur = Secteur;
     if (paroisse) updates.paroisse = paroisse;
@@ -156,7 +156,7 @@ export async function PUT(
     .populate("utilisateur", "prenom nom email")
     .populate("courrierScanne", "nom url");
 
-    // ✅ LOG D'AUDIT
+    //  LOG D'AUDIT
     await action.create({
       admin: currentUser._id,
       action: "modifier_demande_ceremonie",
@@ -207,7 +207,7 @@ export async function DELETE(
       }, { status: 404 });
     }
 
-    // ✅ VÉRIFICATION ABAC
+    //  VÉRIFICATION ABAC
     const estProprietaire = demande.utilisateur.toString() === currentUser._id.toString();
     const estAdmin = currentUser.role.nom === "Admin";
     
@@ -217,7 +217,7 @@ export async function DELETE(
       }, { status: 403 });
     }
 
-    // ✅ Les non-admins ne peuvent supprimer que les demandes en attente
+    //  Les non-admins ne peuvent supprimer que les demandes en attente
     if (!estAdmin && demande.statut !== "en_attente") {
       return NextResponse.json({ 
         message: "Vous ne pouvez supprimer que les demandes en attente." 
@@ -226,7 +226,7 @@ export async function DELETE(
 
     await DemandeCeremonie.findByIdAndDelete(demandeId);
 
-    // ✅ LOG D'AUDIT
+    //  LOG D'AUDIT
     await action.create({
       admin: currentUser._id,
       action: "supprimer_demande_ceremonie",

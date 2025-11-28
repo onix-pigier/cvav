@@ -34,7 +34,7 @@ export const POST = async (request: Request) => {
       courrierScanne
     } = await request.json();
 
-    // ✅ VALIDATION DES CHAMPS REQUIS
+    //  VALIDATION DES CHAMPS REQUIS
     const champsRequis = {
       Secteur,
       paroisse,
@@ -59,7 +59,7 @@ export const POST = async (request: Request) => {
       }, { status: 400 });
     }
 
-    // ✅ VALIDATION DES NOMBRES POSITIFS
+    //  VALIDATION DES NOMBRES POSITIFS
     if (foulardsBenjamins < 0 || foulardsCadets < 0 || foulardsAines < 0 || 
         nombreParrains < 0 || nombreMarraines < 0) {
       return NextResponse.json({ 
@@ -67,7 +67,7 @@ export const POST = async (request: Request) => {
       }, { status: 400 });
     }
 
-    // ✅ VALIDATION DE LA DATE (au moins 1 jour dans le futur)
+    //  VALIDATION DE LA DATE (au moins 1 jour dans le futur)
     const dateCeremonieObj = new Date(dateCeremonie);
     const aujourdhui = new Date();
     aujourdhui.setHours(0, 0, 0, 0);
@@ -78,7 +78,7 @@ export const POST = async (request: Request) => {
       }, { status: 400 });
     }
 
-    // ✅ VÉRIFICATION ABAC : L'utilisateur ne peut créer que dans son secteur/paroisse
+    //  VÉRIFICATION ABAC : L'utilisateur ne peut créer que dans son secteur/paroisse
     if (currentUser.role.nom !== "Admin") {
       if (Secteur !== currentUser.secteur || paroisse !== currentUser.paroisse) {
         return NextResponse.json({ 
@@ -87,7 +87,7 @@ export const POST = async (request: Request) => {
       }
     }
 
-    // ✅ CRÉATION DE LA DEMANDE
+    //  CRÉATION DE LA DEMANDE
     const nouvelleDemande = await DemandeCeremonie.create({
       utilisateur: currentUser._id,
       Secteur,
@@ -103,7 +103,7 @@ export const POST = async (request: Request) => {
       statut: "en_attente"
     });
 
-    // ✅ LOG D'AUDIT
+    //  LOG D'AUDIT
     await action.create({
       admin: currentUser._id,
       action: "creer_demande_ceremonie",
@@ -115,7 +115,7 @@ export const POST = async (request: Request) => {
       }
     });
 
-    // ✅ NOTIFICATION POUR L'ADMIN - Nouvelle demande
+    //  NOTIFICATION POUR L'ADMIN - Nouvelle demande
     const roleAdmin = await Role.findOne({ nom: "Admin" });
     if (roleAdmin) {
       const admins = await Utilisateur.find({ role: roleAdmin._id });
@@ -174,7 +174,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "Accès refusé." }, { status: 403 });
     }
 
-    // ✅ CONSTRUCTION DU FILTRE ABAC
+    //  CONSTRUCTION DU FILTRE ABAC
     let filtre = {};
     
     if (currentUser.role.nom === "Admin") {
@@ -240,7 +240,7 @@ export async function PATCH(request: Request) {
       }, { status: 404 });
     }
 
-    // ✅ MISE À JOUR AVEC VALIDATION
+    //  MISE À JOUR AVEC VALIDATION
     const updateData: any = {
       statut,
       validePar: currentUser._id,
@@ -259,7 +259,7 @@ export async function PATCH(request: Request) {
     .populate("utilisateur", "prenom nom email")
     .populate("validePar", "prenom nom");
 
-    // ✅ NOTIFICATION POUR L'UTILISATEUR - Réponse admin
+    //  NOTIFICATION POUR L'UTILISATEUR - Réponse admin
     await Notification.create({
       utilisateur: demandeMaj.utilisateur._id,
       titre: `Demande de cérémonie ${statut === 'valide' ? 'approuvée' : 'rejetée'}`,
@@ -268,7 +268,7 @@ export async function PATCH(request: Request) {
       type: statut === 'valide' ? "succes" : "erreur"
     });
 
-    // ✅ LOG D'AUDIT
+    //  LOG D'AUDIT
     await action.create({
       admin: currentUser._id,
       action: `${statut}_demande_ceremonie`,
