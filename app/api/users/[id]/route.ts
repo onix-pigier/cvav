@@ -1,3 +1,5 @@
+//app/api/users/[id]/route.ts
+
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Utilisateur from "@/models/utilisateur";
@@ -7,40 +9,87 @@ import { getUserFromToken } from "@/utils/auth";
 // ──────────────────────────────────────────────
 // GET → Récupérer un utilisateur par ID (Admin seulement)
 // ──────────────────────────────────────────────
+// export async function GET(
+//   request: Request, 
+//   { params }: { params: Promise<{ id: string }> } //  CORRECTION NEXT.JS 14
+// ) {
+//   try {
+//     //  CORRECTION CRITIQUE : AWAITER LES PARAMS
+//     const { id } = await params;
+//     const userId = id;
+    
+//     await connectDB();
+//     const currentUser = await getUserFromToken(request);
+    
+//     // CORRECTION : Vérification insensible à la casse
+//     if (!currentUser || currentUser.role.nom?.toLowerCase() !== "admin") {
+//       console.log(' Accès refusé GET - Rôle:', currentUser?.role?.nom);
+//       return NextResponse.json({ message: "Accès refusé. Admin requis." }, { status: 403 });
+//     }
+
+//     const user = await Utilisateur.findById(userId).populate("role").select("-motDePasse");
+    
+//     if (!user) {
+//       return NextResponse.json({ message: "Utilisateur non trouvé." }, { status: 404 });
+//     }
+
+//     return NextResponse.json(user);
+
+//   } catch (error) {
+//     console.error("Erreur recherche utilisateur:", error);
+//     return NextResponse.json({ 
+//       message: "Erreur lors de la recherche." 
+//     }, { status: 500 });
+//   }
+// }
+// app/api/users/[id]/route.ts - PARTIE GET CORRIGÉE
+// Remplacer uniquement la fonction GET
+
 export async function GET(
   request: Request, 
-  { params }: { params: Promise<{ id: string }> } //  CORRECTION NEXT.JS 14
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    //  CORRECTION CRITIQUE : AWAITER LES PARAMS
-    const { id } = await params;
-    const userId = id;
+    const params = await context.params;
+    const userId = params.id;
+    
+    console.log('👤 GET /api/users/[id] - ID:', userId);
     
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    // CORRECTION : Vérification insensible à la casse
     if (!currentUser || currentUser.role.nom?.toLowerCase() !== "admin") {
-      console.log(' Accès refusé GET - Rôle:', currentUser?.role?.nom);
+      console.log('❌ Accès refusé GET - Rôle:', currentUser?.role?.nom);
       return NextResponse.json({ message: "Accès refusé. Admin requis." }, { status: 403 });
     }
 
-    const user = await Utilisateur.findById(userId).populate("role").select("-motDePasse");
+    const user = await Utilisateur.findById(userId)
+      .populate("role", "nom permissions")
+      .select("-motDePasse")
+      .lean() as any; // ← Important pour avoir les vraies données
     
     if (!user) {
+      console.log('❌ Utilisateur non trouvé');
       return NextResponse.json({ message: "Utilisateur non trouvé." }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    console.log('✅ Utilisateur trouvé:', user?.email, '- Actif:', user?.actif);
+
+    // Ajouter estActif pour compatibilité frontend
+    const userAvecStatut = {
+      ...user,
+      estActif: user.actif
+    };
+
+    return NextResponse.json(userAvecStatut);
 
   } catch (error) {
-    console.error("Erreur recherche utilisateur:", error);
+    console.error("💥 Erreur recherche utilisateur:", error);
     return NextResponse.json({ 
       message: "Erreur lors de la recherche." 
     }, { status: 500 });
   }
 }
-
 // ──────────────────────────────────────────────
 // PATCH → Modifier un utilisateur (Admin seulement)
 // ──────────────────────────────────────────────
@@ -113,7 +162,7 @@ export async function PATCH(
     // LOG D'AUDIT
     await LogAction.create({
       admin: currentUser._id,
-      action: "modifier_utilisateur",
+      action: "modifier_tout_utilisateur",
       module: "Utilisateur",
       donnees: { 
         userId: updatedUser._id,
@@ -179,7 +228,7 @@ export async function DELETE(
     // LOG D'AUDIT
     await LogAction.create({
       admin: currentUser._id,
-      action: "supprimer_utilisateur",
+      action: "supprimer_tout_utilisateur",
       module: "Utilisateur",
       donnees: { 
         userId: user._id,

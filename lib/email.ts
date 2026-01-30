@@ -118,5 +118,21 @@ export const emailTemplates = {
         </a>
       </div>
     `
+  }),
+
+  // Email contenant le lien de réinitialisation
+  resetLink: (data: { prenom: string; link: string }) => ({
+    subject: 'Réinitialisation de votre mot de passe',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563eb;">Réinitialisation de mot de passe</h2>
+        <p>Bonjour ${data.prenom},</p>
+        <p>Vous pouvez réinitialiser votre mot de passe en cliquant sur le bouton ci-dessous. Le lien expirera dans 24 heures.</p>
+        <div style="text-align:center; margin: 24px 0;">
+          <a href="${data.link}" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Réinitialiser mon mot de passe</a>
+        </div>
+        <p style="color: #6b7280; font-size: 13px;">Si vous n'avez pas demandé cette réinitialisation, ignorez cet e-mail.</p>
+      </div>
+    `
   })
 };

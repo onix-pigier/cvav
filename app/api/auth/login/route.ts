@@ -1,4 +1,4 @@
-// app/api/auth/login/route.ts
+ // app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import jwt, { SignOptions, Secret } from "jsonwebtoken";
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
           signOptions
         );
 
-    //  Préparer la réponse
+    // 📦 Préparer la réponse
     const userResponse = utilisateur.toJSON();
 
     const response = NextResponse.json({

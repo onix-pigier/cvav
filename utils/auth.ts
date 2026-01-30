@@ -1,4 +1,4 @@
-// utils/auth.ts
+// // utils/auth.ts - VERSION CORRIGÉE
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import Utilisateur from "@/models/utilisateur";
@@ -21,53 +21,41 @@ export async function getUserFromToken(request?: Request) {
       token = cookieStore.get("token")?.value;
     }
 
-    if (!token) {
-      console.log("Aucun token trouvé ");
-      return null;
-    }
-    console.log("Token trouvé :", token.substring(0, 20) + "...");
+    if (!token) return null;
 
-
-    // Vérifier le token
-    const  jwtSecret = process.env.JWT_SECRET;
+    // Vérifier le token (ne pas logger le token en clair pour éviter fuite)
+    const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
       throw new Error("JWT_SECRET non défini");
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+    const decoded = jwt.verify(token, jwtSecret) as {
       userId: string;
       email: string;
       role: string;
     };
 
-    console.log("Token décodé email :", decoded.userId);
-      console.log("Token décodé -UserID :", decoded.email);
-      console.log("Token décodé -Rôle :", decoded.role);
-
     // Connexion à la base de données
-
-      await connectDB();
+    await connectDB();
 
     // Récupérer l'utilisateur
     const utilisateur = await Utilisateur.findById(decoded.userId)
       .populate("role", "nom permissions");
 
-    if (!utilisateur) {
-      //throw new Error("Utilisateur non trouvé");
-      console.log('utilatueur non trouvé en db');
-      return null;
+    // ⚠️ CORRECTION : Vérifier d'abord si l'utilisateur existe
+    if (!utilisateur) return null;
+
+    // 🔥 CORRECTION : Meilleure gestion de la population du rôle
+    if (!utilisateur.role || typeof utilisateur.role === 'string') {
+      console.log("🔄 Rôle non peuplé, nouvelle population...");
+      await utilisateur.populate('role');
     }
 
-    if (!utilisateur.actif) {
-      console.log('Utilisateur non actif');
-      return null;
-    }
-
-    console.log("Utilisateur récupéré :", utilisateur.email);
+    if (!utilisateur.actif) return null;
     return utilisateur;
 
   } catch (error) {
-    console.error("Erreur vérification token:", error);
+    console.error("❌ Erreur vérification token:", error);
     return null;
   }
 }

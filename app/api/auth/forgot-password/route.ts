@@ -4,14 +4,22 @@ import { connectDB } from "@/lib/db";
 import Utilisateur from "@/models/utilisateur";
 import DemandeResetMotDePasse from "@/models/resetpassword";
 import Notification from "@/models/notification";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, emailTemplates } from "@/lib/email";
 import Role from "@/models/role";
+import { consumeRateLimit } from "@/lib/rateLimiter";
 import { randomBytes } from "crypto";
 
 export async function POST(request: Request) {
   try {
     await connectDB();
     const { email } = await request.json();
+
+    // Rate-limiter simple (par email) : 5 tentatives / heure
+    const key = `forgot:${email ? email.toLowerCase() : 'unknown'}`;
+    const rate = consumeRateLimit(key, { windowMs: 60 * 60 * 1000, max: 5 });
+    if (!rate.allowed) {
+      return NextResponse.json({ message: "Trop de tentatives. Réessayez plus tard." }, { status: 429 });
+    }
 
     if (!email) {
       return NextResponse.json({ message: "Email requis." }, { status: 400 });
@@ -47,7 +55,7 @@ export async function POST(request: Request) {
     const token = randomBytes(32).toString('hex');
     const expireLe = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 heures
 
-    //  Créer la demande
+    // Créer la demande
     const demandeReset = await DemandeResetMotDePasse.create({
       utilisateur: utilisateur._id,
       token,
@@ -55,11 +63,15 @@ export async function POST(request: Request) {
       statut: "en_attente"
     });
 
-    // 🔔 Notifier tous les administrateurs
+    // Envoyer lien de réinitialisation à l'utilisateur
+    const resetLink = `${(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '')}/forgot-reset/${token}`;
+    const mail = emailTemplates.resetLink({ prenom: utilisateur.prenom, link: resetLink });
+    await sendEmail({ to: utilisateur.email, subject: mail.subject, html: mail.html });
+
+    // Notifier les administrateurs (notification interne)
     const roleAdmin = await Role.findOne({ nom: "Admin" });
     if (roleAdmin) {
       const admins = await Utilisateur.find({ role: roleAdmin._id });
-      
       for (const admin of admins) {
         await Notification.create({
           utilisateur: admin._id,
@@ -68,14 +80,6 @@ export async function POST(request: Request) {
           lien: `/admin/reset-password-requests/${demandeReset._id}`,
           type: "info"
         });
-
-          const subject = 'Nouvelle demande de réinitialisation de mot de passe';
-  const html = `
-    <p>Bonjour ${admin.prenom},</p>
-    <p>L'utilisateur ${utilisateur.prenom} ${utilisateur.nom} (${utilisateur.email}) a demandé une réinitialisation de mot de passe.</p>
-    <p>Veuillez vous connecter à l'administration pour traiter cette demande.</p>
-  `;
-  await sendEmail(admin.email, subject, html);
       }
     }
 

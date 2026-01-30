@@ -11,8 +11,21 @@ export default function ForgotPasswordPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Logique d'envoi d'email
-
-    setIsSubmitted(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        // On affiche le message générique indépendamment du résultat
+        setIsSubmitted(true);
+      } catch (err) {
+        // afficher quand même message générique pour éviter de révéler l'existence d'un email
+        setIsSubmitted(true);
+      }
+    })();
   };
 
   return (
@@ -89,7 +102,7 @@ export default function ForgotPasswordPage() {
                     <div>
                       <h2 className="text-xl font-semibold text-gray-900 mb-2 tracking-tight">Email envoyé !</h2>
                       <p className="text-gray-600 text-sm leading-6">
-                        Un message a été envoyé à <strong className="text-gray-900">Vôtre Administrateurs</strong>
+                        Si votre adresse existe dans notre système, vous recevrez un email contenant un lien pour réinitialiser votre mot de passe.
                       </p>
                     </div>
                     <Link 

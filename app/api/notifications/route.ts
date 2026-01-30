@@ -1,3 +1,4 @@
+// C:\Users\cesar\Documents\cv-av\app\api\notifications\route.ts 
 // import { NextResponse } from "next/server";
 // import { connectDB } from "@/lib/db";
 // import { getUserFromToken } from "@/utils/auth";
@@ -82,7 +83,7 @@
 //     }, { status: 500 });
 //   }
 // }
-
+//app/api/notifications/route.ts
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { voirPermission } from "@/utils/permission";
@@ -181,4 +182,4 @@ export async function PATCH(request: Request) {
             message: "Erreur lors de la mise à jour des notifications." 
         }, { status: 500 });
     }
-}
+} 

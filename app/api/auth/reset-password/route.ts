@@ -97,21 +97,14 @@ export async function POST(request: Request) {
       });
 
     } else {
-      //  Enregistrer la raison du rejet
-}
+      // Enregistrer la raison du rejet
+      demande.raisonRejet = raisonRejet;
+    }
 
-await demande.save();
+    // Sauvegarder la demande (approuvée ou rejetée)
+    await demande.save();
 
-// 📊 Log d'audit
-await action.create({
-  admin: currentUser._id,
-  action: `reset_password_${actionAdmin}`,
-  module: "Auth",
-  donnees: { 
-    demandeId: demande._id,
-    utilisateur: demande.utilisateur._id
-  }
-});
+    // Log d'audit (une seule entrée)
     await action.create({
       admin: currentUser._id,
       action: `reset_password_${actionAdmin}`,
@@ -121,8 +114,6 @@ await action.create({
         utilisateur: demande.utilisateur._id
       }
     });
-    
-
     return NextResponse.json({ 
       message: `Demande ${actionAdmin === 'approuve' ? 'approuvée' : 'rejetée'}.` 
     });

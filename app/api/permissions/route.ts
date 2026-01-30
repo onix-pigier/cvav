@@ -1,3 +1,5 @@
+//app/api/permissions/route.ts
+
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { getUserFromToken } from '@/utils/auth';

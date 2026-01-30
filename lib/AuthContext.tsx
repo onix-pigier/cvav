@@ -20,7 +20,8 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, motDePasse: string) => Promise<{ success: boolean; message?: string }>;
+  isLoggingOut: boolean;
+  login: (email: string, motDePasse: string) => Promise<{ success: boolean; message?: string;   doitChangerMotDePasse?: boolean;  }>;
   logout: () => Promise<void>;
 }
 
@@ -33,6 +34,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
 
   // ⬇️ FONCTION EXTRACTED POUR RÉUTILISATION
@@ -76,7 +78,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (res.ok) {
         // ⬇️ APPEL checkAuth APRÈS LOGIN RÉUSSI
         await checkAuth();
-        return { success: true };
+        return {
+           success: true,
+           doitChangerMotDePasse: data.doitChangerMotDePasse 
+         };
       } else {
         return { 
           success: false, 
@@ -93,16 +98,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
+      // ✅ ÉTAPE 1 : Mettre le state en loading immédiatement
+      setIsLoggingOut(true);
+      setUser(null); // Supprimer l'utilisateur TOUT DE SUITE (évite le flash)
+      
+      // ✅ ÉTAPE 2 : Appeler le serveur pour supprimer le cookie
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
+      
     } catch (err) {
-      console.warn('Logout serveur échoué, on continue côté client', err);
+      console.warn('⚠️ Erreur logout serveur, on continue côté client', err);
     } finally {
-      setUser(null);
-      router.push('/login');
+      // ✅ ÉTAPE 3 : Naviguer et rafraîchir
+      setIsLoggingOut(false);
       router.refresh();
+      router.push('/login');
     }
   };
 
@@ -110,6 +122,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     isLoading,
     isAuthenticated: !!user,
+    isLoggingOut,
     login,
     logout,
   };

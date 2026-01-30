@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+// app/api/roles/route.ts 
+ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { getUserFromToken } from '@/utils/auth';
 import { voirPermission } from '@/utils/permission';
@@ -79,7 +80,7 @@ export const POST = async (request: Request) => {
     //  LOG D'AUDIT
     await LogAction.create({
       admin: currentUser._id,
-      action: "creer_role",
+      action: "creer_tout_role",
       module: "Role",
       donnees: { 
         roleId: nouveauRole._id, 
@@ -113,7 +114,7 @@ export const GET = async (request: Request) => {
     const currentUser = await getUserFromToken(request);
 
     //  CORRECTION : Vérification insensible à la casse
-    if (!currentUser || !voirPermission(currentUser, "voir_role")) {
+    if (!currentUser || !voirPermission(currentUser, "voir_tout_role")) {
       console.log(' Accès refusé - Rôle actuel:', currentUser?.role?.nom);
       return NextResponse.json({ 
         message: "Accès refusé. Permission 'voir_role' requise." 

@@ -1,3 +1,4 @@
+//app/api/notifications/[id]/route.ts
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserFromToken } from "@/utils/auth";
@@ -6,7 +7,7 @@ import Notification from "@/models/notification";
 // PATCH /api/notifications/[id] - Marquer une notification comme lue
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
@@ -16,7 +17,8 @@ export async function PATCH(
       return NextResponse.json({ message: "Non authentifié." }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    const { id } = await params;
+    const notificationId = id;
     const notification = await Notification.findOne({
       _id: notificationId,
       utilisateur: currentUser._id
@@ -47,7 +49,7 @@ export async function PATCH(
 // DELETE /api/notifications/[id] - Supprimer une notification
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
@@ -57,7 +59,8 @@ export async function DELETE(
       return NextResponse.json({ message: "Non authentifié." }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    const { id } = await params;
+    const notificationId = id;
     const notification = await Notification.findOneAndDelete({
       _id: notificationId,
       utilisateur: currentUser._id
@@ -79,4 +82,4 @@ export async function DELETE(
       message: "Erreur lors de la suppression de la notification." 
     }, { status: 500 });
   }
-}
+} 

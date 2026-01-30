@@ -1,11 +1,22 @@
 "use client";
 
-import { ChevronFirst, ChevronLast, MoreVertical, User, LogOut, Crown } from "lucide-react";
+import { ChevronFirst, ChevronLast, MoreVertical, User, LogOut,Bell ,Crown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, ReactNode, useContext, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
+import nodemailer from 'nodemailer';
+
+
+interface Notification {
+  _id: string;
+  titre: string;
+  message: string;
+  lu: boolean;
+  type: string;
+  createdAt: string;
+}
 
 // Contexte pour savoir si la sidebar est étendue
 const SidebarContext = createContext<{ expanded: boolean }>({ expanded: true });
@@ -17,7 +28,10 @@ interface SidebarProps {
 export default function Sidebar({ children }: SidebarProps) {
   const [expanded, setExpanded] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { user, isLoading , logout } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [ nonLues, setNonLues ] = useState(0);
 
   const toggleSidebar = () => {
     setExpanded((curr) => !curr);
@@ -63,6 +77,7 @@ if (isLoading) {
             height={48}
             className="rounded-full ring-4 ring-orange-500/20 cursor-pointer hover:scale-110 transition-transform duration-300 shadow-2xl"
             onClick={toggleSidebar}
+        
           />
         </div>
       )}
@@ -84,6 +99,7 @@ if (isLoading) {
                 width={52}
                 height={52}
                 className="rounded-full ring-4 ring-orange-500/20 group-hover:ring-orange-500/40 transition-all duration-300 group-hover:scale-105"
+                priority
               />
               <div className="overflow-hidden transition-all duration-500 ease-in-out">
                 <h1 className="font-bold text-2xl bg-linear-to-r from-blue-700 to-orange-600 bg-clip-text text-transparent">
@@ -154,12 +170,14 @@ if (isLoading) {
                 <button
                   onClick={async () => {
                     setDropdownOpen(false);
+                    setIsLoggingOut(true); // ✅ Prévenir les clics multiples
                     await logout();
                   }}
-                 className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-red-50 text-red-600 font-medium transition-colors"
+                  disabled={isLoggingOut} // ✅ Désactiver le bouton pendant la logout
+                  className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-red-50 text-red-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <LogOut size={18} />
-                  Déconnexion
+                  {isLoggingOut ? "Déconnexion en cours..." : "Déconnexion"}
                 </button>
               </div>
             )}
@@ -190,10 +208,11 @@ interface SidebarItemProps {
   href?: string;
   active?: boolean;
   alert?: boolean;
+  badge?: number; // ✅ NOUVEAU : compteur de notifications
   onClick?: () => void;
 }
 
-export function SidebarItem({ icon, text, href, active, alert, onClick }: SidebarItemProps) {
+export function SidebarItem({ icon, text, href, active, alert, badge, onClick }: SidebarItemProps) {
   const { expanded } = useContext(SidebarContext);
   const pathname = usePathname();
   
@@ -218,7 +237,14 @@ export function SidebarItem({ icon, text, href, active, alert, onClick }: Sideba
         }`}>
           {icon}
         </div>
-        {alert && (
+        {/* ✅ Badge compteur */}
+        {badge && badge > 0 && (
+          <span className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center shadow-lg animate-pulse">
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
+        {/* ✅ Alerte si pas de badge */}
+        {alert && (!badge || badge === 0) && (
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse ring-2 ring-white shadow-lg"></div>
         )}
       </div>
@@ -297,3 +323,7 @@ export function SidebarItem({ icon, text, href, active, alert, onClick }: Sideba
   );
 }
 
+// Hook pour utiliser le contexte de la sidebar
+export function useSidebarContext() {
+  return useContext(SidebarContext);
+}

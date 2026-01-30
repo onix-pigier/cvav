@@ -1,3 +1,4 @@
+// app/api/roles/[id]/route.ts
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserFromToken } from "@/utils/auth";
@@ -68,7 +69,7 @@ export async function PATCH(
     await connectDB();
     const currentUser = await getUserFromToken(request);
 
-    if (!currentUser || !voirPermission(currentUser, "modifier_role")) {
+    if (!currentUser || !voirPermission(currentUser, "modifier_tout_role")) {
       return NextResponse.json({ 
         message: "Accès refusé. Permission 'modifier_role' requise." 
       }, { status: 403 });
@@ -154,7 +155,7 @@ export async function PATCH(
     //  LOG D'AUDIT
     await LogAction.create({
       admin: currentUser._id,
-      action: "modifier_role",
+      action: "modifier_tout_role",
       module: "Role",
       donnees: { 
         roleId: roleMisAJour._id, 
@@ -195,7 +196,7 @@ export async function DELETE(
     
     console.log(" Tentative suppression rôle:", roleId);
     
-    if (!currentUser || !voirPermission(currentUser, "supprimer_role")) {
+    if (!currentUser || !voirPermission(currentUser, "supprimer_tout_role")) {
       return NextResponse.json({ 
         message: "Accès refusé. Permission 'supprimer_role' requise." 
       }, { status: 403 });
@@ -258,7 +259,7 @@ export async function DELETE(
     //  LOG D'AUDIT
     await LogAction.create({
       admin: currentUser._id,
-      action: "supprimer_role",
+      action: "supprimer_tout_role",
       module: "Role",
       donnees: { 
         roleId: roleSupprime._id, 

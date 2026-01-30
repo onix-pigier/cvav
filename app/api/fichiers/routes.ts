@@ -4,6 +4,18 @@ import { voirPermission } from "@/utils/permission";
 import { getUserFromToken } from "@/utils/auth";
 import Fichier from "@/models/fichier";
 import action from "@/models/action";
+import { writeFile, mkdir } from "fs/promises";
+import { 
+  validateFileType,
+  validateFileSize,
+  generateUniqueFileName,
+  getFileUrl,
+  buildFileResponse
+} from "@/lib/fileUtils";
+import {
+  getUploadDir,
+  getFilePath
+} from "@/lib/fileUtilsServer";
 
 // ──────────────────────────────────────────────
 // POST → Uploader un fichier
@@ -19,58 +31,69 @@ export const POST = async (request: Request) => {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const type = formData.get('type') as "courrier" | "bulletin" | "autre";
     const nom = formData.get('nom') as string;
 
-    if (!file || !type || !nom) {
+    if (!file || !nom) {
       return NextResponse.json({ 
-        message: "Fichier, type et nom requis." 
+        message: "Fichier et nom requis." 
       }, { status: 400 });
     }
 
-    //  VALIDATION DU TYPE
-    if (!["courrier", "bulletin", "autre"].includes(type)) {
+    // ──────────────────────────────────────────────
+    // VALIDATION DU FICHIER
+    // ──────────────────────────────────────────────
+    if (!validateFileType(file.type)) {
       return NextResponse.json({ 
-        message: "Type de fichier invalide." 
+        message: "Type de fichier non supporté. PDF, JPG, JPEG ou PNG uniquement." 
       }, { status: 400 });
     }
 
-    //  VALIDATION TAILLE (10MB max)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
+    if (!validateFileSize(file.size)) {
       return NextResponse.json({ 
         message: "Fichier trop volumineux. Maximum 10MB." 
       }, { status: 400 });
     }
 
-    //  CONVERSION EN BUFFER
+    // ──────────────────────────────────────────────
+    // GÉNÉRATION NOM UNIQUE
+    // ──────────────────────────────────────────────
+    const uniqueName = generateUniqueFileName(file.name);
+
+    // ──────────────────────────────────────────────
+    // CRÉATION DOSSIER SI NÉCESSAIRE
+    // ──────────────────────────────────────────────
+    try {
+      const uploadDir = getUploadDir();
+      await mkdir(uploadDir, { recursive: true });
+    } catch (error) {
+      // Dossier existe déjà
+    }
+
+    // ──────────────────────────────────────────────
+    // SAUVEGARDE PHYSIQUE
+    // ──────────────────────────────────────────────
+    const filepath = getFilePath(uniqueName);
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    await writeFile(filepath, buffer);
 
-    //  GÉNÉRATION URL/SAUVEGARDE (à adapter selon votre système de stockage)
-    // Exemple avec stockage local - à remplacer par votre service (AWS S3, etc.)
-    const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
-    const fileUrl = `/uploads/${fileName}`;
-    
-    // Ici, vous intégrerez votre service de stockage
-    // Pour l'exemple, on simule l'enregistrement
-    console.log('Fichier à sauvegarder:', {
-      nom: file.name,
+    // ──────────────────────────────────────────────
+    // CRÉATION EN BASE
+    // ──────────────────────────────────────────────
+    const nouveauFichier = await Fichier.create({
+      nom: nom,
+      nomUnique: uniqueName,
+      url: getFileUrl(uniqueName),
       type: file.type,
       taille: file.size,
-      url: fileUrl
+      uploadePar: currentUser._id
     });
 
-    //  CRÉATION EN BASE
-    const nouveauFichier = await Fichier.create({
-      url: fileUrl,
-      nom: nom,
-      type: type,
-      uploader: currentUser._id,
-      taille: file.size
-    });
+    console.log('✅ Fichier uploadé:', nouveauFichier._id, nom);
 
-    //  LOG D'AUDIT
+    // ──────────────────────────────────────────────
+    // LOG D'AUDIT
+    // ──────────────────────────────────────────────
     await action.create({
       admin: currentUser._id,
       action: "uploader_fichiers",
@@ -78,7 +101,6 @@ export const POST = async (request: Request) => {
       donnees: { 
         fichierId: nouveauFichier._id,
         nom: nom,
-        type: type,
         taille: file.size
       }
     });
@@ -86,13 +108,13 @@ export const POST = async (request: Request) => {
     return NextResponse.json(
       { 
         message: "Fichier uploadé avec succès.",
-        data: nouveauFichier 
+        data: buildFileResponse(nouveauFichier) 
       }, 
       { status: 201 }
     );
 
   } catch (error) {
-    console.error("Erreur upload fichier:", error);
+    console.error("❌ Erreur upload fichier:", error);
     return NextResponse.json({ 
       message: "Erreur lors de l'upload du fichier." 
     }, { status: 500 });
@@ -112,30 +134,26 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type');
     const uploader = searchParams.get('uploader');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    //  CONSTRUCTION FILTRES
+    // ──────────────────────────────────────────────
+    // CONSTRUCTION FILTRES
+    // ──────────────────────────────────────────────
     let filtre: any = {};
-    
-    // Filtre par type
-    if (type && ["courrier", "bulletin", "autre"].includes(type)) {
-      filtre.type = type;
-    }
 
     // Filtre par uploader (admin voit tout, autres voient seulement leurs fichiers)
     if (currentUser.role.nom !== "Admin") {
-      filtre.uploader = currentUser._id;
+      filtre.uploadePar = currentUser._id;
     } else if (uploader) {
-      filtre.uploader = uploader;
+      filtre.uploadePar = uploader;
     }
 
     const skip = (page - 1) * limit;
 
     const fichiers = await Fichier.find(filtre)
-      .populate("uploader", "prenom nom email")
+      .populate("uploadePar", "prenom nom email")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -143,7 +161,7 @@ export async function GET(request: Request) {
     const total = await Fichier.countDocuments(filtre);
 
     return NextResponse.json({
-      fichiers,
+      fichiers: fichiers.map(f => buildFileResponse(f)),
       pagination: {
         page,
         limit,
@@ -153,7 +171,7 @@ export async function GET(request: Request) {
     });
 
   } catch (error) {
-    console.error("Erreur liste fichiers:", error);
+    console.error("❌ Erreur liste fichiers:", error);
     return NextResponse.json({ 
       message: "Erreur lors de la récupération des fichiers." 
     }, { status: 500 });

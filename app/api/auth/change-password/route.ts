@@ -1,3 +1,5 @@
+//app/api/auth/change-password/route.ts
+
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserFromToken } from "@/utils/auth";
@@ -9,9 +11,7 @@ export async function POST(request: Request) {
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    console.log('🔐 DEBUG CHANGE PASSWORD - Début');
-    console.log(' - User authentifié:', currentUser?.email);
-    
+    // Changement de mot de passe demandé
     if (!currentUser) {
       console.log('❌ DEBUG: Utilisateur non authentifié');
       return NextResponse.json({ message: "Non authentifié." }, { status: 401 });
@@ -19,12 +19,6 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { motDePasseActuel, nouveauMotDePasse, isForcedChange } = body;
-
-    console.log('📥 DEBUG: Données reçues:', {
-      motDePasseActuel: motDePasseActuel ? '***' + motDePasseActuel.slice(-4) : 'MANQUANT',
-      nouveauMotDePasse: nouveauMotDePasse ? '***' + nouveauMotDePasse.slice(-4) : 'MANQUANT',
-      isForcedChange: isForcedChange || false
-    });
 
     if (!motDePasseActuel || !nouveauMotDePasse) {
       console.log('❌ DEBUG: Champs manquants');
@@ -45,63 +39,34 @@ export async function POST(request: Request) {
     const utilisateur = await Utilisateur.findById(currentUser._id)
       .select("+motDePasse +doitChangerMotDePasse");
 
-    console.log('👤 DEBUG: Utilisateur trouvé:', {
-      email: utilisateur?.email,
-      doitChangerMotDePasse: utilisateur?.doitChangerMotDePasse,
-      hasMotDePasse: !!utilisateur?.motDePasse
-    });
-
     if (!utilisateur) {
       console.log('❌ DEBUG: Utilisateur non trouvé en base');
       return NextResponse.json({ message: "Utilisateur non trouvé." }, { status: 404 });
     }
 
     // 🔄 LOGIQUE ADAPTÉE POUR LES DEUX MODES
-    console.log('🔑 DEBUG: Avant comparaison mot de passe');
+    // Vérifications et comparaisons sans log sensible
     
     if (isForcedChange) {
       // 🎯 MODE FORCÉ : Vérification du mot de passe temporaire
-      console.log('🎯 MODE FORCÉ - Vérification mot de passe temporaire');
       const motDePasseTemporaireCorrect = await utilisateur.compareMotDePasse(motDePasseActuel);
-      console.log('🔑 DEBUG: Résultat comparaison temporaire:', motDePasseTemporaireCorrect);
-      
       if (!motDePasseTemporaireCorrect) {
-        console.log('❌ DEBUG: Mot de passe temporaire incorrect');
-        console.log('   - Fourni:', motDePasseActuel);
-        console.log('   - Stocké (hash):', utilisateur.motDePasse?.substring(0, 20) + '...');
-        return NextResponse.json({ 
-          message: "Mot de passe temporaire incorrect." 
-        }, { status: 400 });
+        return NextResponse.json({ message: "Mot de passe temporaire incorrect." }, { status: 400 });
       }
     } else {
-      // 🎯 MODE VOLONTAIRE : Vérification du mot de passe actuel
-      console.log('🎯 MODE VOLONTAIRE - Vérification mot de passe actuel');
       const motDePasseActuelCorrect = await utilisateur.compareMotDePasse(motDePasseActuel);
-      console.log('🔑 DEBUG: Résultat comparaison actuel:', motDePasseActuelCorrect);
-      
       if (!motDePasseActuelCorrect) {
-        console.log('❌ DEBUG: Mot de passe actuel incorrect');
-        console.log('   - Fourni:', motDePasseActuel);
-        console.log('   - Stocké (hash):', utilisateur.motDePasse?.substring(0, 20) + '...');
-        return NextResponse.json({ 
-          message: "Mot de passe actuel incorrect." 
-        }, { status: 400 });
+        return NextResponse.json({ message: "Mot de passe actuel incorrect." }, { status: 400 });
       }
     }
 
     // Empêcher la réutilisation du même mot de passe
     const memeMotDePasse = await utilisateur.compareMotDePasse(nouveauMotDePasse);
-    console.log('🔄 DEBUG: Même mot de passe que ancien?', memeMotDePasse);
-    
     if (memeMotDePasse) {
-      console.log('❌ DEBUG: Nouveau mot de passe identique à ancien');
-      return NextResponse.json({ 
-        message: "Le nouveau mot de passe doit être différent de l'actuel." 
-      }, { status: 400 });
+      return NextResponse.json({ message: "Le nouveau mot de passe doit être différent de l'actuel." }, { status: 400 });
     }
 
-    // ✅ Mettre à jour le mot de passe
-    console.log('✅ DEBUG: Mise à jour du mot de passe');
+    // Mettre à jour le mot de passe
     utilisateur.motDePasse = nouveauMotDePasse;
     
     // Seulement en mode forcé, on désactive le flag
@@ -114,7 +79,7 @@ export async function POST(request: Request) {
     await utilisateur.save();
     console.log('✅ DEBUG: Mot de passe mis à jour avec succès');
 
-    // 📝 Log d'audit adapté
+    // Log d'audit
     await LogAction.create({
       admin: currentUser._id,
       action: "changer_mot_de_passe",
@@ -125,9 +90,6 @@ export async function POST(request: Request) {
         mode: isForcedChange ? "forcé" : "volontaire"
       }
     });
-
-    console.log('📝 DEBUG: Log d audit créé');
-    console.log('🎉 DEBUG: Changement mot de passe TERMINÉ avec succès - Mode:', isForcedChange ? 'FORCÉ' : 'VOLONTAIRE');
 
     return NextResponse.json({ 
       message: "Mot de passe changé avec succès." 

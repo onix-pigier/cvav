@@ -34,7 +34,7 @@ const UtilisateurSchema = new Schema<IUtilisateur>(
     telephone: { type: String, trim: true },
     paroisse: { type: String, trim: true },
     secteur: { type: String, trim: true },
-    actif: { type: Boolean, default: true },
+    actif: { type: Boolean, default: true , index: true },
     creerPar: { type: Schema.Types.ObjectId, ref: "Utilisateur", default: null },
     doitChangerMotDePasse: { type: Boolean, default: false },
     dernierChangementMotDePasse: { type: Date, default: Date.now },
