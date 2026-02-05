@@ -166,17 +166,16 @@
 //     }, { status: 500 });
 //   }
 // };
-// // app/api/roles/route.ts - VERSION MISE À JOUR
+// app/api/roles/route.ts - VERSION CORRIGÉE TYPESCRIPT
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { getUserFromToken } from '@/utils/auth';
-import { voirPermission, estAdmin } from '@/utils/permission';
+import { voirPermission, estAdmin, ALL_PERMISSIONS } from '@/utils/permission';
 import Role from '@/models/role';
-import Utilisateur from '@/models/utilisateur';
 import LogAction from '@/models/action';
 
-// ✅ IMPORT DE LA NOUVELLE STRUCTURE
-import { ALL_PERMISSIONS } from '@/app/api/permissions/route';
+// ✅ Type pour les permissions
+type PermissionType = typeof ALL_PERMISSIONS[number];
 
 // ============================================
 // CONFIGURATION
@@ -234,10 +233,12 @@ export const POST = async (request: Request) => {
       }, { status: 400 });
     }
 
-    // ✅ Filtrage permissions valides
+    // ✅ FIX TYPESCRIPT: Filtrage permissions valides avec type guard
     const permissionsValides = permissions
       .map(p => String(p).trim())
-      .filter(permission => ALL_PERMISSIONS.includes(permission));
+      .filter((permission): permission is PermissionType => {
+        return ALL_PERMISSIONS.includes(permission as PermissionType);
+      });
 
     console.log(`✅ ${permissionsValides.length} permissions valides sur ${permissions.length}`);
 

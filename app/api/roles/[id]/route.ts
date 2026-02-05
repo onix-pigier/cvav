@@ -1,4 +1,4 @@
-// app/api/roles/[id]/route.ts
+// app/api/roles/[id]/route.ts - CORRECTION TYPESCRIPT
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserFromToken } from "@/utils/auth";
@@ -7,6 +7,9 @@ import Role from "@/models/role";
 import LogAction from "@/models/action";
 import Utilisateur from "@/models/utilisateur";
 import { ALL_PERMISSIONS } from "@/utils/permission";
+
+// Type pour les permissions
+type PermissionType = typeof ALL_PERMISSIONS[number];
 
 //  CONFIGURATION
 const ROLES_SYSTEME_PROTEGES = ['admin', 'utilisateur'];
@@ -21,17 +24,16 @@ function estRoleSysteme(nomRole: string): boolean {
 // ──────────────────────────────────────────────
 export async function GET(
   request: Request, 
-  { params }: { params: Promise<{ id: string }> } //  Déclarer comme Promise
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    //  CORRECTION CRITIQUE : AWAITER LES PARAMS
     const { id } = await params;
-    console.log(" GET Rôle ID:", id);
+    console.log("📖 GET Rôle ID:", id);
     
     await connectDB();
     const currentUser = await getUserFromToken(request);
 
-    if (!currentUser || !voirPermission(currentUser, "voir_role")) {
+    if (!currentUser || !voirPermission(currentUser, "voir_tout_role")) {
       return NextResponse.json({ message: "Accès refusé." }, { status: 403 });
     }
 
@@ -41,7 +43,7 @@ export async function GET(
       return NextResponse.json({ message: "Rôle non trouvé." }, { status: 404 });
     }
 
-    //  MASQUER LES PERMISSIONS AUX NON-ADMINS
+    // MASQUER LES PERMISSIONS AUX NON-ADMINS
     const roleAEnvoyer = currentUser.role.nom.toLowerCase() === 'admin' 
       ? role.toObject()
       : { ...role.toObject(), permissions: undefined };
@@ -49,7 +51,7 @@ export async function GET(
     return NextResponse.json(roleAEnvoyer);
 
   } catch (error) {
-    console.error("Erreur lecture rôle:", error);
+    console.error("❌ Erreur lecture rôle:", error);
     return NextResponse.json({ message: "Erreur serveur." }, { status: 500 });
   }
 }
@@ -59,36 +61,35 @@ export async function GET(
 // ──────────────────────────────────────────────
 export async function PATCH(
   request: Request, 
-  { params }: { params: Promise<{ id: string }> } //  Déclarer comme Promise
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    //  CORRECTION CRITIQUE : AWAITER LES PARAMS
     const { id } = await params;
-    console.log(" PATCH Rôle ID:", id);
+    console.log("✏️ PATCH Rôle ID:", id);
     
     await connectDB();
     const currentUser = await getUserFromToken(request);
 
     if (!currentUser || !voirPermission(currentUser, "modifier_tout_role")) {
       return NextResponse.json({ 
-        message: "Accès refusé. Permission 'modifier_role' requise." 
+        message: "Accès refusé. Permission 'modifier_tout_role' requise." 
       }, { status: 403 });
     }
 
     const { nom, permissions } = await request.json();
     const roleId = id;
     
-    console.log(" Données reçues modification rôle:", { nom, permissions, roleId });
+    console.log("📝 Données reçues modification rôle:", { nom, permissions, roleId });
     
-    //  RÉCUPÉRATION ET VÉRIFICATION DU RÔLE
+    // RÉCUPÉRATION ET VÉRIFICATION DU RÔLE
     const role = await Role.findById(roleId);
     if (!role) {
       return NextResponse.json({ message: "Rôle non trouvé." }, { status: 404 });
     }
 
-    console.log(" Rôle à modifier:", role.nom);
+    console.log("🔍 Rôle à modifier:", role.nom);
 
-    //  BLOQUER MODIFICATION RÔLES SYSTÈME
+    // BLOQUER MODIFICATION RÔLES SYSTÈME
     if (estRoleSysteme(role.nom)) {
       return NextResponse.json({ 
         message: `Le rôle "${role.nom}" est un rôle système et ne peut être modifié.` 
@@ -97,7 +98,7 @@ export async function PATCH(
 
     const updateData: any = {};
     
-    //  VALIDATION NOM
+    // VALIDATION NOM
     if (nom && nom.trim() !== '') {
       const nomLower = String(nom).trim().toLowerCase();
       
@@ -124,7 +125,7 @@ export async function PATCH(
       }
     }
 
-    //  CORRECTION : AUTORISER LES PERMISSIONS VIDES
+    // ✅ CORRECTION TYPESCRIPT : Validation des permissions
     if (permissions !== undefined) {
       if (!Array.isArray(permissions)) {
         return NextResponse.json({ 
@@ -132,16 +133,19 @@ export async function PATCH(
         }, { status: 400 });
       }
 
+      // ✅ FIX: Utiliser un type guard pour TypeScript
       const permissionsValides = permissions
         .map(p => String(p).trim())
-        .filter(permission => ALL_PERMISSIONS.includes(permission));
+        .filter((permission): permission is PermissionType => {
+          return ALL_PERMISSIONS.includes(permission as PermissionType);
+        });
 
       updateData.permissions = permissionsValides;
     }
 
-    console.log(" Données de mise à jour:", updateData);
+    console.log("📊 Données de mise à jour:", updateData);
 
-    //  MISE À JOUR SÉCURISÉE
+    // MISE À JOUR SÉCURISÉE
     const roleMisAJour = await Role.findByIdAndUpdate(
       roleId, 
       updateData, 
@@ -152,7 +156,7 @@ export async function PATCH(
       return NextResponse.json({ message: "Erreur lors de la mise à jour du rôle." }, { status: 500 });
     }
 
-    //  LOG D'AUDIT
+    // LOG D'AUDIT
     await LogAction.create({
       admin: currentUser._id,
       action: "modifier_tout_role",
@@ -171,7 +175,7 @@ export async function PATCH(
     });
 
   } catch (error) {
-    console.error(" Erreur modification rôle:", error);
+    console.error("❌ Erreur modification rôle:", error);
     return NextResponse.json({ 
       message: "Erreur lors de la modification du rôle." 
     }, { status: 500 });
@@ -183,80 +187,79 @@ export async function PATCH(
 // ──────────────────────────────────────────────
 export async function DELETE(
   request: Request, 
-  { params }: { params: Promise<{ id: string }> } //  Déclarer comme Promise
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    //  CORRECTION CRITIQUE : AWAITER LES PARAMS
     const { id } = await params;
-    console.log("DELETE Rôle ID:", id);
+    console.log("🗑️ DELETE Rôle ID:", id);
     
     await connectDB();
     const currentUser = await getUserFromToken(request);
     const roleId = id;
     
-    console.log(" Tentative suppression rôle:", roleId);
+    console.log("🔍 Tentative suppression rôle:", roleId);
     
     if (!currentUser || !voirPermission(currentUser, "supprimer_tout_role")) {
       return NextResponse.json({ 
-        message: "Accès refusé. Permission 'supprimer_role' requise." 
+        message: "Accès refusé. Permission 'supprimer_tout_role' requise." 
       }, { status: 403 });
     }
 
-    //  VÉRIFICATION RÔLE EXISTANT
+    // VÉRIFICATION RÔLE EXISTANT
     const role = await Role.findById(roleId);
     if (!role) {
       return NextResponse.json({ message: "Rôle non trouvé." }, { status: 404 });
     }
 
-    console.log(" Rôle à supprimer:", role.nom);
+    console.log("📋 Rôle à supprimer:", role.nom);
 
-    //  BLOQUER SUPPRESSION RÔLES SYSTÈME
+    // BLOQUER SUPPRESSION RÔLES SYSTÈME
     if (estRoleSysteme(role.nom)) {
       return NextResponse.json({ 
         message: `Le rôle "${role.nom}" est un rôle système et ne peut être supprimé.` 
       }, { status: 403 });
     }
 
-    //  VÉRIFICATION CRITIQUE : VARIABLE ENVIRONNEMENT
+    // VÉRIFICATION CRITIQUE : VARIABLE ENVIRONNEMENT
     const ID_DU_ROLE_PAR_DEFAUT = process.env.DEFAULT_USER_ROLE_ID;
     if (!ID_DU_ROLE_PAR_DEFAUT) {
-      console.error(" DEFAULT_USER_ROLE_ID non défini");
+      console.error("❌ DEFAULT_USER_ROLE_ID non défini");
       return NextResponse.json({ 
         message: "Configuration manquante: DEFAULT_USER_ROLE_ID non défini" 
       }, { status: 500 });
     }
 
-    console.log(" Rôle par défaut:", ID_DU_ROLE_PAR_DEFAUT);
+    console.log("🔍 Rôle par défaut:", ID_DU_ROLE_PAR_DEFAUT);
 
-    //  VÉRIFIER QUE LE RÔLE PAR DÉFAUT EXISTE
+    // VÉRIFIER QUE LE RÔLE PAR DÉFAUT EXISTE
     const roleParDefaut = await Role.findById(ID_DU_ROLE_PAR_DEFAUT);
     if (!roleParDefaut) {
-      console.error(" Rôle par défaut non trouvé:", ID_DU_ROLE_PAR_DEFAUT);
+      console.error("❌ Rôle par défaut non trouvé:", ID_DU_ROLE_PAR_DEFAUT);
       return NextResponse.json({ 
         message: "Le rôle par défaut spécifié n'existe pas." 
       }, { status: 500 });
     }
 
-    console.log(" Rôle par défaut trouvé:", roleParDefaut.nom);
+    console.log("✅ Rôle par défaut trouvé:", roleParDefaut.nom);
 
-    //  RÉAFFECTATION DES UTILISATEURS
+    // RÉAFFECTATION DES UTILISATEURS
     const utilisateursMisAJour = await Utilisateur.updateMany(
       { role: roleId },
       { $set: { role: ID_DU_ROLE_PAR_DEFAUT } }
     );
 
-    console.log(" Utilisateurs réaffectés:", utilisateursMisAJour.modifiedCount);
+    console.log("👥 Utilisateurs réaffectés:", utilisateursMisAJour.modifiedCount);
 
-    //  SUPPRESSION
+    // SUPPRESSION
     const roleSupprime = await Role.findByIdAndDelete(roleId);
 
     if (!roleSupprime) {
       return NextResponse.json({ message: "Erreur lors de la suppression du rôle." }, { status: 500 });
     }
 
-    console.log(" Rôle supprimé:", roleSupprime.nom);
+    console.log("✅ Rôle supprimé:", roleSupprime.nom);
 
-    //  LOG D'AUDIT
+    // LOG D'AUDIT
     await LogAction.create({
       admin: currentUser._id,
       action: "supprimer_tout_role",
@@ -273,7 +276,7 @@ export async function DELETE(
     });
 
   } catch (error) {
-    console.error(" Erreur suppression rôle:", error);
+    console.error("❌ Erreur suppression rôle:", error);
     return NextResponse.json({ 
       message: "Erreur lors de la suppression du rôle." 
     }, { status: 500 });
