@@ -32,7 +32,7 @@ export default function AdminHomePage() {
       title: '👥 Utilisateurs',
       description: 'Gérer les utilisateurs et leurs permissions',
       icon: Users,
-      href: '/dashboard/admin/utilisateurs',
+      href: '/dashboard/admin/users',
       color: 'amber'
     },
     {
@@ -46,7 +46,7 @@ export default function AdminHomePage() {
       title: '⚙️ Paramètres',
       description: 'Configurer le système',
       icon: Settings,
-      href: '/dashboard/admin/parametres',
+      href: '/dashboard/parametres',
       color: 'gray'
     },
   ];

@@ -366,7 +366,7 @@ export default function MilitantForm({ militantToEdit, onClose, onSuccess }: Mil
                     field="telephone"
                     icon={Phone}
                     type="tel"
-                    placeholder="+243 XX XXX XX XX"
+                    placeholder="+225 07 07 07 07 07"
                 />
 
                 {/* Boutons */}

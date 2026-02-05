@@ -1257,4 +1257,7 @@ function QuickActionCard({ title, description, icon: Icon, gradient, onClick }: 
       </div>
     </div>
   );
+
 }
+
+//.div$*7

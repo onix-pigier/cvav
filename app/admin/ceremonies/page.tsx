@@ -1,3 +1,4 @@
+// app/admin/ceremonies/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -44,7 +45,7 @@ export default function AdminCeremoniesPage() {
 
   // Vérifier que l'utilisateur est admin
   useEffect(() => {
-    if (user && user.role?.nom !== 'Admin') {
+    if (user && user.role?.nom !== 'admin') {
       router.push('/403');
     }
   }, [user, router]);
@@ -102,7 +103,7 @@ export default function AdminCeremoniesPage() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  if (!user || user.role?.nom !== 'Admin') {
+  if (!user || user.role?.nom !== 'admin') {
     return null;
   }
 

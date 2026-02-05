@@ -1,3 +1,4 @@
+// app/api/attestations/[id]/valider/route.ts
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { voirPermission } from "@/utils/permission";

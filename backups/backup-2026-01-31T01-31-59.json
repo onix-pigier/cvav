@@ -1,0 +1,321 @@
+{
+  "timestamp": "2026-01-31T01:32:01.613Z",
+  "database": "CVAV",
+  "collections": {
+    "utilisateurs": [
+      {
+        "_id": "6928f0aa4f291ac118c20133",
+        "prenom": "yous",
+        "nom": "toure",
+        "email": "kouassicesariokouassi+test1@gmail.com",
+        "motDePasse": "$2b$12$y36foIb3XQO.tviyodFjpukuD1au/Da41Kzh9vhLtnNIPUx1Em51q",
+        "role": "69288a86f2af8fb466613ae5",
+        "telephone": "+2250745859614",
+        "paroisse": "sainte marie",
+        "secteur": "d'arc",
+        "actif": true,
+        "creerPar": "69288a86f2af8fb466613ae8",
+        "doitChangerMotDePasse": true,
+        "tentativesConnexion": 1,
+        "dernierChangementMotDePasse": "2026-01-28T16:58:02.990Z",
+        "createdAt": "2025-11-28T00:45:30.561Z",
+        "updatedAt": "2026-01-30T14:49:41.547Z",
+        "__v": 0
+      },
+      {
+        "_id": "6929c87e5c64eed4938a0abd",
+        "prenom": "Admin",
+        "nom": "CVAV",
+        "email": "admin@cvav.com",
+        "motDePasse": "$2b$12$2Ucia6oLy68pf5931i0XfO8TF5x/Pl8Mmc/2rEzneTuwP4.0peoMO",
+        "role": "69288a85f2af8fb466613ad5",
+        "telephone": "",
+        "paroisse": "",
+        "secteur": "",
+        "actif": true,
+        "creerPar": null,
+        "doitChangerMotDePasse": false,
+        "dernierChangementMotDePasse": "2025-11-28T16:06:22.463Z",
+        "tentativesConnexion": 0,
+        "createdAt": "2025-11-28T16:06:22.052Z",
+        "updatedAt": "2025-11-28T16:06:22.052Z",
+        "__v": 0
+      },
+      {
+        "_id": "697ac40b8e23f6d5908a43fe",
+        "prenom": "HANSE",
+        "nom": "DIAMALA",
+        "email": "mrdevci@gmail.com",
+        "motDePasse": "$2b$12$Du74lrVnWSZijowsiKd6Oe.3ndu3eRt67O/kmCSRbIWbcn1juBno2",
+        "role": "69796c577007066f2f5a6537",
+        "telephone": "+2250507209039",
+        "paroisse": "jeann",
+        "secteur": "Ouest",
+        "actif": false,
+        "creerPar": "6929c87e5c64eed4938a0abd",
+        "doitChangerMotDePasse": true,
+        "tentativesConnexion": 0,
+        "dernierChangementMotDePasse": "2026-01-29T02:21:00.307Z",
+        "createdAt": "2026-01-29T02:20:59.827Z",
+        "updatedAt": "2026-01-29T02:27:11.740Z",
+        "__v": 0
+      },
+      {
+        "_id": "697ac51d8e23f6d5908a4417",
+        "prenom": "MARC",
+        "nom": "KOFFI",
+        "email": "cesakouassi5@gmail.com",
+        "motDePasse": "$2b$12$J7H2hFiC0/gfF2djmtVwFetoAtYOYsEzqzhahZqceQG1vpYGat9Va",
+        "role": "69796c577007066f2f5a6537",
+        "telephone": "+2250594482275",
+        "paroisse": "saint abobo",
+        "secteur": "Ouest",
+        "actif": true,
+        "creerPar": "6929c87e5c64eed4938a0abd",
+        "doitChangerMotDePasse": false,
+        "tentativesConnexion": 0,
+        "dernierChangementMotDePasse": "2026-01-30T03:02:05.709Z",
+        "createdAt": "2026-01-29T02:25:33.997Z",
+        "updatedAt": "2026-01-30T03:02:05.250Z",
+        "__v": 0
+      }
+    ],
+    "roles": [
+      {
+        "_id": "69288a85f2af8fb466613ad5",
+        "nom": "admin",
+        "permissions": [
+          "*"
+        ],
+        "createdAt": "2025-11-27T17:29:41.236Z",
+        "updatedAt": "2025-11-27T17:29:41.236Z",
+        "__v": 0
+      },
+      {
+        "_id": "69288a85f2af8fb466613adf",
+        "nom": "vendeur",
+        "permissions": [
+          "voir_mes_demandes_ceremonie",
+          "voir_mes_demandes_attestation"
+        ],
+        "createdAt": "2025-11-27T17:29:41.769Z",
+        "updatedAt": "2025-11-28T16:06:21.235Z",
+        "__v": 1
+      },
+      {
+        "_id": "69288a86f2af8fb466613ae5",
+        "nom": "utilisateur",
+        "permissions": [
+          "voir_mes_demandes_ceremonie",
+          "voir_mes_demandes_attestation"
+        ],
+        "createdAt": "2025-11-27T17:29:42.283Z",
+        "updatedAt": "2025-11-28T16:06:21.787Z",
+        "__v": 1
+      },
+      {
+        "_id": "692a0b8fe38210b1a21111aa",
+        "nom": "Admin",
+        "permissions": [
+          "*"
+        ],
+        "createdAt": "2025-11-28T20:52:31.273Z",
+        "updatedAt": "2025-11-28T20:52:31.273Z",
+        "__v": 0
+      },
+      {
+        "_id": "69796c577007066f2f5a6537",
+        "nom": "professeur",
+        "permissions": [
+          "creer_mes_demandes_attestations",
+          "creer_mes_demandes_ceremonies",
+          "creer_tout_militant",
+          "creer_tout_role",
+          "creer_mes_militants",
+          "creer_tout_utilisateur",
+          "voir_toutes_demandes_ceremonie",
+          "voir_toute_notification",
+          "voir_toutes_demandes_attestation",
+          "voir_tout_parametre_systeme",
+          "voir_tout_utilisateur",
+          "voir_tout_role",
+          "voir_tout_militant",
+          "voir_tout_logs_actions",
+          "voir_mes_notifications",
+          "voir_tout_logs_erreurs",
+          "voir_mes_demandes_ceremonies",
+          "valider_toute_demande_ceremonie",
+          "uploader_mes_fichiers",
+          "valider_toute_demande_attestation",
+          "voir_mes_demandes_attestations",
+          "voir_mes_militants",
+          "voir_tout_fichier",
+          "voir_mes_fichiers",
+          "uploader_tout_fichier",
+          "telecharger_tout_fichier"
+        ],
+        "createdAt": "2026-01-28T01:54:31.802Z",
+        "updatedAt": "2026-01-28T01:55:16.688Z",
+        "__v": 0
+      }
+    ],
+    "militants": [
+      {
+        "_id": "6925ab167470af6a3def39df",
+        "creePar": "692589e16751bc8ad23ce9ba",
+        "prenom": "cesario",
+        "sexe": "M",
+        "nom": "DAPLE",
+        "paroisse": "jeann",
+        "secteur": "d'arc",
+        "grade": "meneur",
+        "quartier": "laobia",
+        "createdAt": "2025-11-25T13:11:50.846Z",
+        "updatedAt": "2025-11-25T14:52:36.464Z",
+        "__v": 0
+      },
+      {
+        "_id": "6925ab457470af6a3def39e6",
+        "creePar": "692589e16751bc8ad23ce9ba",
+        "prenom": "cesario",
+        "sexe": "M",
+        "nom": "DAPLE",
+        "paroisse": "jeann",
+        "secteur": "sud",
+        "grade": "meneur",
+        "quartier": "laobia",
+        "createdAt": "2025-11-25T13:12:37.141Z",
+        "updatedAt": "2025-11-25T14:38:18.024Z",
+        "__v": 0
+      },
+      {
+        "_id": "6925ad287470af6a3def39f1",
+        "creePar": "692589e16751bc8ad23ce9ba",
+        "prenom": "kouassi cesario",
+        "sexe": "M",
+        "nom": "kouassi",
+        "paroisse": "sainte marie",
+        "secteur": "sud",
+        "grade": "meneur",
+        "quartier": "laobia",
+        "createdAt": "2025-11-25T13:20:40.262Z",
+        "updatedAt": "2025-11-25T14:39:08.210Z",
+        "__v": 0
+      },
+      {
+        "_id": "6925bf232a973130f69db503",
+        "creePar": "692589e16751bc8ad23ce9ba",
+        "prenom": "MINISTERE",
+        "sexe": "M",
+        "nom": "DU PLAN",
+        "paroisse": "saint abobo",
+        "secteur": "Ouest ",
+        "grade": "meneur",
+        "quartier": "abobo",
+        "createdAt": "2025-11-25T14:37:23.363Z",
+        "updatedAt": "2025-11-25T14:42:21.015Z",
+        "__v": 0
+      },
+      {
+        "_id": "6925c2e02a973130f69db562",
+        "creePar": "692589e16751bc8ad23ce9ba",
+        "prenom": "jean",
+        "sexe": "M",
+        "nom": "christ",
+        "paroisse": "sainte marie",
+        "secteur": "Ouest ",
+        "grade": "meneur",
+        "quartier": "abobo",
+        "createdAt": "2025-11-25T14:53:20.438Z",
+        "updatedAt": "2025-11-25T14:53:20.438Z",
+        "__v": 0
+      },
+      {
+        "_id": "6925c4712a973130f69db577",
+        "creePar": "692589e16751bc8ad23ce9ba",
+        "prenom": "kouassi cesario",
+        "sexe": "M",
+        "nom": "kouassi",
+        "paroisse": "saint abobo",
+        "secteur": "Ouest éé",
+        "grade": "meneur",
+        "quartier": "réé",
+        "createdAt": "2025-11-25T15:00:01.774Z",
+        "updatedAt": "2025-11-25T15:00:01.774Z",
+        "__v": 0
+      },
+      {
+        "_id": "6925fa5963fa9b0b88618741",
+        "creePar": "692589e16751bc8ad23ce9ba",
+        "prenom": "kouassi cesario",
+        "sexe": "M",
+        "nom": "kouassi",
+        "paroisse": "fff",
+        "secteur": "Nord",
+        "grade": "Chef de secteur",
+        "quartier": "dzfff",
+        "createdAt": "2025-11-25T18:50:01.277Z",
+        "updatedAt": "2025-11-25T18:50:01.277Z",
+        "__v": 0
+      },
+      {
+        "_id": "6925fc5663fa9b0b88618748",
+        "creePar": "692589e16751bc8ad23ce9ba",
+        "prenom": "kouassi cesario",
+        "sexe": "F",
+        "nom": "kouassi",
+        "paroisse": "crccccccccc",
+        "secteur": "Nord",
+        "grade": "Chef de secteur",
+        "quartier": "zfz",
+        "createdAt": "2025-11-25T18:58:30.551Z",
+        "updatedAt": "2025-11-25T18:58:30.551Z",
+        "__v": 0
+      },
+      {
+        "_id": "6926269a63fa9b0b886187aa",
+        "creePar": "692589e16751bc8ad23ce9ba",
+        "prenom": "JOHN",
+        "sexe": "F",
+        "nom": "doe",
+        "paroisse": "Paroisse Sainte-Marie",
+        "secteur": "Sud",
+        "grade": "Militant",
+        "quartier": "abobo",
+        "createdAt": "2025-11-25T21:58:50.745Z",
+        "updatedAt": "2025-11-25T21:58:50.745Z",
+        "__v": 0
+      }
+    ],
+    "demandeattestation": [],
+    "demandeceremonies": [],
+    "notifications": [],
+    "actions": [],
+    "fichiers": [
+      {
+        "_id": "697c2037e6c0a004f4fd00b6",
+        "nom": "p2.png",
+        "nomUnique": "1769742391168-n6azo.png",
+        "url": "/uploads/1769742391168-n6azo.png",
+        "type": "image/png",
+        "taille": 124343,
+        "uploadePar": "6929c87e5c64eed4938a0abd",
+        "createdAt": "2026-01-30T03:06:31.212Z",
+        "updatedAt": "2026-01-30T03:06:31.212Z",
+        "__v": 0
+      },
+      {
+        "_id": "697cc0475ad90bbd711421b8",
+        "nom": "CESARIO RE9U.png",
+        "nomUnique": "1769783367632-8yxtoce.png",
+        "url": "/uploads/1769783367632-8yxtoce.png",
+        "type": "image/png",
+        "taille": 67338,
+        "uploadePar": "6929c87e5c64eed4938a0abd",
+        "createdAt": "2026-01-30T14:29:27.650Z",
+        "updatedAt": "2026-01-30T14:29:27.650Z",
+        "__v": 0
+      }
+    ]
+  }
+}

@@ -125,7 +125,7 @@ export async function PATCH(
     console.log('📊 Statut actuel (actif):', user.actif);
 
     // Empêcher désactivation admin système
-    if (user.email === 'admin@cvav.com' && user.actif) {
+    if (user.email === 'kouassicesariokouassi@gmail.com' && user.actif) {
       console.log('❌ Tentative désactivation admin système bloquée');
       return NextResponse.json({ 
         message: "L'administrateur système ne peut pas être désactivé." 

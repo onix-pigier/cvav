@@ -1,7 +1,7 @@
-//C:\Users\cesar\Documents\cv-av\app\api\militants\route.ts 
+// //app/api/militants/route.ts - VERSION CORRIGÉE
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { voirPermission } from "@/utils/permission";
+import { voirPermission, estAdmin } from "@/utils/permission";
 import { getUserFromToken } from "@/utils/auth";
 import militant from '@/models/militant';
 import action from '@/models/action';
@@ -11,24 +11,12 @@ import action from '@/models/action';
 // ──────────────────────────────────────────────
 
 /**
- * Vérifie si l'utilisateur est admin (insensible à la casse)
- */
-function estAdmin(utilisateur: any): boolean {
-  const roleNom = utilisateur?.role?.nom?.toLowerCase() || '';
-  console.log('🔍 Vérification Admin:', {
-    roleNom,
-    estAdmin: roleNom === 'admin'
-  });
-  return roleNom === 'admin';
-}
-
-/**
- * Retourne le filtre de requête MongoDB basé sur le rôle et la zone de l'utilisateur.
+ * Retourne le filtre MongoDB basé sur le rôle et la zone de l'utilisateur.
  * - Admin: retourne {} (Accès à toutes les données).
  * - Autre: retourne { paroisse: P, secteur: S } (Accès limité à sa zone).
  */
 function getFiltreABAC(utilisateur: any) {
-  console.log('📍 Utilisateur dans getFiltreABAC:', {
+  console.log('📍 getFiltreABAC - Utilisateur:', {
     id: utilisateur?._id,
     role: utilisateur?.role?.nom,
     paroisse: utilisateur?.paroisse,
@@ -36,7 +24,7 @@ function getFiltreABAC(utilisateur: any) {
   });
 
   if (estAdmin(utilisateur)) {
-    console.log("✅ Utilisateur Admin détecté : accès complet aux militants.");
+    console.log("✅ Admin détecté : accès complet aux militants.");
     return {};
   }
 
@@ -46,7 +34,7 @@ function getFiltreABAC(utilisateur: any) {
     secteur: utilisateur?.secteur
   };
 
-  console.log("🔒 Filtre ABAC généré pour l'utilisateur :", filtre);
+  console.log("🔒 Filtre ABAC généré :", filtre);
   return filtre;
 }
 
@@ -66,10 +54,16 @@ export const POST = async (request: Request) => {
       secteur: currentUser?.secteur
     });
     
-    // 1. Vérification RBAC de base
-    if (!currentUser || !voirPermission(currentUser, "creer_militant")) {
+    // ✅ CORRECTION : Vérifier la bonne permission
+    if (!currentUser) {
+      return NextResponse.json({ message: "Non authentifié." }, { status: 401 });
+    }
+
+    if (!voirPermission(currentUser, "creer_militant")) {
       console.log('❌ Permission refusée pour creer_militant');
-      return NextResponse.json({ message: "Accès refusé. Permission manquante." }, { status: 403 });
+      return NextResponse.json({ 
+        message: "Accès refusé. Permission 'creer_militant' requise." 
+      }, { status: 403 });
     }
 
     const body = await request.json();
@@ -77,7 +71,7 @@ export const POST = async (request: Request) => {
     
     console.log('📝 Données reçues:', { nom, prenom, paroisse, secteur, sexe, grade });
     
-    // --- Validation de format / Champs requis ---
+    // Validation
     const champsRequis = { nom, prenom, paroisse, secteur, sexe, grade, quartier };
     const champsManquants = Object.entries(champsRequis)
       .filter(([_, value]) => !value)
@@ -90,14 +84,12 @@ export const POST = async (request: Request) => {
         champs: champsManquants
       }, { status: 400 });
     }
-    // --- Fin Validation ---
 
-    // 2. VÉRIFICATION ABAC CRITIQUE : L'utilisateur ne peut créer que dans sa zone
-    // Sauf si c'est l'Admin (qui peut créer n'importe où)
-    const isAdmin = estAdmin(currentUser);
-    console.log(`🔐 Vérification ABAC - Admin: ${isAdmin}`);
+    // ABAC : L'utilisateur ne peut créer que dans sa zone (sauf admin)
+    const isAdminUser = estAdmin(currentUser);
+    console.log(`🔐 Vérification ABAC - Admin: ${isAdminUser}`);
     
-    if (!isAdmin) {
+    if (!isAdminUser) {
       console.log('🔒 Vérification zone pour utilisateur non-admin');
       if (currentUser.paroisse !== paroisse || currentUser.secteur !== secteur) {
         console.log('❌ Zone non autorisée:', {
@@ -110,12 +102,12 @@ export const POST = async (request: Request) => {
           message: "Vous ne pouvez créer des militants que dans votre paroisse et secteur." 
         }, { status: 403 });
       }
-      console.log('✅ Zone autorisée pour l\'utilisateur');
+      console.log('✅ Zone autorisée');
     } else {
-      console.log('✅ Admin - Création autorisée dans toute zone');
+      console.log('✅ Admin - Création autorisée partout');
     }
 
-    // 3. Vérification d'existence
+    // Vérification d'existence
     const militantExiste = await militant.findOne({ 
       nom, 
       prenom, 
@@ -126,11 +118,11 @@ export const POST = async (request: Request) => {
     if (militantExiste) {
       console.log('⚠️ Militant déjà existant');
       return NextResponse.json({ 
-        message: "Militant déjà existant (Nom, Prénom, Paroisse, Secteur non uniques)." 
+        message: "Militant déjà existant avec ces informations." 
       }, { status: 400 });
     }
 
-    // 4. Création
+    // Création
     const newMilitant = await militant.create({
       creePar: currentUser._id,
       nom,
@@ -143,9 +135,9 @@ export const POST = async (request: Request) => {
       telephone
     });
 
-    console.log('✅ Militant créé avec succès:', newMilitant._id);
+    console.log('✅ Militant créé:', newMilitant._id);
 
-    // 5. Journalisation
+    // Journalisation
     await action.create({
       admin: currentUser._id,
       action: "creer_militant",
@@ -157,7 +149,6 @@ export const POST = async (request: Request) => {
 
   } catch (error) {
     console.error("❌ Erreur création militant:", error);
-    // Gérer spécifiquement les erreurs de validation Mongoose si le modèle échoue
     if (error instanceof Error && (error as any).name === 'ValidationError') {
         return NextResponse.json({ 
             message: "Erreur de validation des données.", 
@@ -188,18 +179,28 @@ export async function GET(request: Request) {
       secteur: currentUser?.secteur
     });
 
-    // 1. Vérification RBAC
     if (!currentUser) {
       console.log('❌ Aucun utilisateur connecté');
-      return NextResponse.json({ message: "Accès refusé. Utilisateur non connecté." }, { status: 403 });
+      return NextResponse.json({ 
+        message: "Non authentifié." 
+      }, { status: 401 });
     }
 
-    if (!voirPermission(currentUser, "voir_militants")) {
-      console.log('❌ Permission manquante pour voir_militants');
-      return NextResponse.json({ message: "Accès refusé. Permission manquante." }, { status: 403 });
+    // ✅ CORRECTION : Vérifier les bonnes permissions
+    const peutVoirTout = 
+      estAdmin(currentUser) || 
+      voirPermission(currentUser, "voir_tout_militant");
+    
+    const peutVoirSiens = voirPermission(currentUser, "voir_mes_militants");
+
+    if (!peutVoirTout && !peutVoirSiens) {
+      console.log('❌ Permissions insuffisantes');
+      return NextResponse.json({ 
+        message: "Accès refusé. Permission 'voir_tout_militant' ou 'voir_mes_militants' requise." 
+      }, { status: 403 });
     }
 
-    console.log('✅ Permissions OK');
+    console.log('✅ Permissions OK - Peut voir tout:', peutVoirTout, '- Peut voir siens:', peutVoirSiens);
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -209,15 +210,24 @@ export async function GET(request: Request) {
     const grade = searchParams.get("grade") || "";
     const skip = (page - 1) * limit;
 
-    console.log('📋 Paramètres de requête:', { page, limit, search, secteur, grade });
+    console.log('📋 Paramètres:', { page, limit, search, secteur, grade });
 
-    // 2. FILTRE ABAC IMPLICITE
-    const filtreABAC = getFiltreABAC(currentUser);
+    // ✅ FILTRE ABAC SELON LES PERMISSIONS
+    let filtreABAC = {};
+    
+    if (peutVoirTout) {
+      // Admin ou permission globale : voir TOUT
+      filtreABAC = {};
+      console.log('✅ Accès global - Pas de filtre ABAC');
+    } else if (peutVoirSiens) {
+      // User normal : voir seulement sa zone
+      filtreABAC = getFiltreABAC(currentUser);
+      console.log('🔒 Accès restreint - Filtre ABAC appliqué:', filtreABAC);
+    }
+
     let filtre: any = { ...filtreABAC };
 
-    console.log('🔍 Filtre ABAC initial:', filtre);
-
-    // 3. Ajout des filtres optionnels
+    // Filtres optionnels
     if (secteur) {
       filtre.secteur = secteur;
     }
@@ -226,7 +236,7 @@ export async function GET(request: Request) {
       filtre.grade = grade;
     }
 
-    // 4. Recherche textuelle
+    // Recherche textuelle
     if (search) {
       filtre.$or = [
         { nom: { $regex: search, $options: "i" } },
@@ -237,9 +247,9 @@ export async function GET(request: Request) {
       ];
     }
 
-    console.log('🔍 Filtre final appliqué:', JSON.stringify(filtre, null, 2));
+    console.log('🔍 Filtre final:', JSON.stringify(filtre, null, 2));
 
-    // 5. Exécution des requêtes
+    // Exécution des requêtes
     const [militants, total] = await Promise.all([
       militant.find(filtre)
         .sort({ createdAt: -1 })
@@ -251,11 +261,10 @@ export async function GET(request: Request) {
 
     console.log('📊 Résultats:', {
       militantsTrouves: militants.length,
-      total: total,
-      filtre: filtre
+      total: total
     });
 
-    // 6. Statistiques
+    // Statistiques
     let stats = { total: 0, parSecteur: {}, parGrade: {} };
     try {
       const [parSecteur, parGrade] = await Promise.all([
@@ -275,9 +284,9 @@ export async function GET(request: Request) {
         parGrade: Object.fromEntries(parGrade.map(g => [g._id, g.count])),
       };
 
-      console.log('📈 Statistiques calculées:', stats);
+      console.log('📈 Statistiques:', stats);
     } catch (statsError) {
-      console.warn('⚠️ Erreur lors du calcul des statistiques:', statsError);
+      console.warn('⚠️ Erreur stats:', statsError);
     }
 
     const response = NextResponse.json({ 
@@ -301,46 +310,61 @@ export async function GET(request: Request) {
     console.error("❌ Erreur recherche militants:", error);
     
     if (error instanceof Error) {
-      console.error('❌ Détails erreur:', {
+      console.error('❌ Détails:', {
         message: error.message,
-        stack: error.stack,
-        name: error.name
+        stack: error.stack
       });
     }
 
     return NextResponse.json({ 
-      message: "Erreur serveur lors de la recherche de la liste.",
+      message: "Erreur serveur lors de la recherche.",
       error: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : 'Erreur inconnue' : undefined
     }, { status: 500 });
   }
 }
 
 // ──────────────────────────────────────────────
-// DELETE - Suppression avec ABAC implicite
+// DELETE - Suppression avec ABAC
 // ──────────────────────────────────────────────
 export async function DELETE(request: Request) {
   try {
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    // 1. Vérification RBAC
-    if (!currentUser || !voirPermission(currentUser, "supprimer_militant")) {
-      return NextResponse.json({ message: "Accès refusé. Permission manquante." }, { status: 403 });
+    if (!currentUser) {
+      return NextResponse.json({ message: "Non authentifié." }, { status: 401 });
+    }
+
+    // ✅ CORRECTION : Vérifier les bonnes permissions
+    const peutSupprimerTout = 
+      estAdmin(currentUser) || 
+      voirPermission(currentUser, "supprimer_tout_militant");
+    
+    const peutSupprimerSiens = voirPermission(currentUser, "supprimer_mes_militants");
+
+    if (!peutSupprimerTout && !peutSupprimerSiens) {
+      return NextResponse.json({ 
+        message: "Accès refusé. Permission manquante." 
+      }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
-    if (!id) {
-      return NextResponse.json({ message: "ID manquant dans les paramètres de requête." }, { status: 400 });
-    }
-    
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-      return NextResponse.json({ message: "ID de militant invalide (format attendu : ObjectId)." }, { status: 400 });
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return NextResponse.json({ 
+        message: "ID invalide." 
+      }, { status: 400 });
     }
 
-    // 2. FILTRE ABAC IMPLICITE
-    const filtreAcces = getFiltreABAC(currentUser);
+    // Filtre ABAC
+    let filtreAcces = {};
+    
+    if (peutSupprimerTout) {
+      filtreAcces = {};  // Peut supprimer n'importe lequel
+    } else if (peutSupprimerSiens) {
+      filtreAcces = getFiltreABAC(currentUser);  // Seulement sa zone
+    }
 
     const militantToDelete = await militant.findOneAndDelete({ 
         _id: id, 
@@ -349,11 +373,11 @@ export async function DELETE(request: Request) {
 
     if (!militantToDelete) {
       return NextResponse.json({ 
-          message: "Militant non trouvé ou accès refusé (hors de votre zone)." 
+          message: "Militant non trouvé ou accès refusé." 
       }, { status: 404 });
     }
 
-    // 3. Journalisation
+    // Journalisation
     await action.create({
       admin: currentUser._id,
       action: "supprimer_militant",
@@ -373,31 +397,48 @@ export async function DELETE(request: Request) {
 }
 
 // ──────────────────────────────────────────────
-// PUT - Modification/Déplacement avec ABAC
+// PUT - Modification avec ABAC
 // ──────────────────────────────────────────────
 export async function PUT(request: Request) {
   try {
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    // 1. Vérification RBAC
-    if (!currentUser || !voirPermission(currentUser, "modifier_militant")) {
-      return NextResponse.json({ message: "Accès refusé. Permission manquante." }, { status: 403 });
+    if (!currentUser) {
+      return NextResponse.json({ message: "Non authentifié." }, { status: 401 });
+    }
+
+    // ✅ CORRECTION : Vérifier les bonnes permissions
+    const peutModifierTout = 
+      estAdmin(currentUser) || 
+      voirPermission(currentUser, "modifier_tout_militant");
+    
+    const peutModifierSiens = voirPermission(currentUser, "modifier_mes_militants");
+
+    if (!peutModifierTout && !peutModifierSiens) {
+      return NextResponse.json({ 
+        message: "Accès refusé. Permission manquante." 
+      }, { status: 403 });
     }
 
     const body = await request.json();
     const { id, nom, prenom, paroisse, secteur, sexe, grade, quartier, telephone } = body;
     
-    if (!id) {
-      return NextResponse.json({ message: "ID manquant dans le corps de la requête." }, { status: 400 });
-    }
-    
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-        return NextResponse.json({ message: "ID de militant invalide (format attendu : ObjectId)." }, { status: 400 });
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return NextResponse.json({ 
+        message: "ID invalide." 
+      }, { status: 400 });
     }
 
-    // 2. Récupération du militant existant
-    const filtreAcces = getFiltreABAC(currentUser);
+    // Filtre ABAC
+    let filtreAcces = {};
+    
+    if (peutModifierTout) {
+      filtreAcces = {};
+    } else if (peutModifierSiens) {
+      filtreAcces = getFiltreABAC(currentUser);
+    }
+
     const militantToUpdate = await militant.findOne({ _id: id, ...filtreAcces });
     
     if (!militantToUpdate) {
@@ -406,25 +447,23 @@ export async function PUT(request: Request) {
       }, { status: 404 });
     }
 
-    // 3. VÉRIFICATION ABAC pour déplacement
+    // ABAC pour déplacement
     const nouvelleParoisse = paroisse || militantToUpdate.paroisse;
     const nouveauSecteur = secteur || militantToUpdate.secteur;
 
     const estDeplacement = (paroisse && paroisse !== militantToUpdate.paroisse) || 
                            (secteur && secteur !== militantToUpdate.secteur);
 
-    const isAdmin = estAdmin(currentUser);
-
-    if (estDeplacement && !isAdmin) {
-        // Utilisateur non-admin : Ne peut déplacer le militant que vers SA PROPRE zone
+    if (estDeplacement && !peutModifierTout) {
+        // User non-admin ne peut déplacer que vers sa zone
         if (nouvelleParoisse !== currentUser.paroisse || nouveauSecteur !== currentUser.secteur) {
             return NextResponse.json({ 
-              message: "Vous ne pouvez déplacer un militant que dans votre paroisse/secteur." 
+              message: "Vous ne pouvez déplacer un militant que dans votre zone." 
             }, { status: 403 });
         }
     }
 
-    // 4. Mise à jour
+    // Mise à jour
     const updatedMilitant = await militant.findByIdAndUpdate(
       id, 
       { 
@@ -440,7 +479,7 @@ export async function PUT(request: Request) {
       { new: true, runValidators: true }
     );
     
-    // 5. Journalisation
+    // Journalisation
     await action.create({
       admin: currentUser._id,
       action: "modifier_militant",
@@ -469,30 +508,47 @@ export async function PUT(request: Request) {
 }
 
 // ──────────────────────────────────────────────
-// PATCH - Lecture unitaire avec ABAC implicite
+// PATCH - Lecture unitaire avec ABAC
 // ──────────────────────────────────────────────
 export async function PATCH(request: Request) {
   try {
     await connectDB();
     const currentUser = await getUserFromToken(request);
     
-    // 1. Vérification RBAC
-    if (!currentUser || !voirPermission(currentUser, "voir_militants")) {
-      return NextResponse.json({ message: "Accès refusé. Permission manquante." }, { status: 403 });
+    if (!currentUser) {
+      return NextResponse.json({ message: "Non authentifié." }, { status: 401 });
+    }
+
+    // ✅ CORRECTION : Vérifier les bonnes permissions
+    const peutVoirTout = 
+      estAdmin(currentUser) || 
+      voirPermission(currentUser, "voir_tout_militant");
+    
+    const peutVoirSiens = voirPermission(currentUser, "voir_mes_militants");
+
+    if (!peutVoirTout && !peutVoirSiens) {
+      return NextResponse.json({ 
+        message: "Accès refusé. Permission manquante." 
+      }, { status: 403 });
     }
 
     const { id } = await request.json();
     
-    if (!id) {
-      return NextResponse.json({ message: "ID manquant dans le corps de la requête." }, { status: 400 });
-    }
-    
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-        return NextResponse.json({ message: "ID de militant invalide (format attendu : ObjectId)." }, { status: 400 });
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return NextResponse.json({ 
+        message: "ID invalide." 
+      }, { status: 400 });
     }
 
-    // 2. FILTRE ABAC IMPLICITE
-    const filtreAcces = getFiltreABAC(currentUser);
+    // Filtre ABAC
+    let filtreAcces = {};
+    
+    if (peutVoirTout) {
+      filtreAcces = {};
+    } else if (peutVoirSiens) {
+      filtreAcces = getFiltreABAC(currentUser);
+    }
+
     const militantToGet = await militant.findOne({ 
         _id: id, 
         ...filtreAcces 
@@ -500,7 +556,7 @@ export async function PATCH(request: Request) {
 
     if (!militantToGet) {
       return NextResponse.json({ 
-          message: "Militant non trouvé ou accès refusé (hors de votre zone)." 
+          message: "Militant non trouvé ou accès refusé." 
       }, { status: 404 });
     }
 
@@ -509,7 +565,7 @@ export async function PATCH(request: Request) {
   } catch (error) {
     console.error("❌ Erreur recherche militant:", error);
     return NextResponse.json({ 
-      message: "Erreur serveur lors de la lecture unitaire." 
+      message: "Erreur serveur lors de la lecture." 
     }, { status: 500 });
   }
 }

@@ -16,12 +16,12 @@ export default function AdminLayout({
 
   // Vérifier que l'utilisateur est admin
   useEffect(() => {
-    if (user && user.role?.nom !== 'Admin') {
+    if (user && user.role?.nom !== 'admin') {
       router.push('/403');
     }
   }, [user, router]);
 
-  if (!user || user.role?.nom !== 'Admin') {
+  if (!user || user.role?.nom !== 'admin') {
     return null;
   }
 

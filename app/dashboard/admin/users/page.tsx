@@ -584,7 +584,7 @@ export default function UsersListPage() {
       // Marquer l'admin système (premier admin créé)
       const usersWithProtection = data.data.map((u: Utilisateur, idx: number) => ({
         ...u,
-        estAdminSysteme: u.role.nom.toLowerCase() === 'admin' && u.email === 'admin@cvav.com'
+        estAdminSysteme: u.role.nom.toLowerCase() === 'admin' && u.email === 'kouassicesariokouassi@gmail.com'
       }));
       
       setUsers(usersWithProtection);

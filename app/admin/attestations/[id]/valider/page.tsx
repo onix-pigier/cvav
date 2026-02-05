@@ -1,3 +1,4 @@
+// app/admin/attestations/[id]/valider/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -59,7 +60,7 @@ export default function ValidateAttestationPage() {
 
   // Vérifier accès admin
   useEffect(() => {
-    if (user && user.role?.nom !== 'Admin') {
+    if (user && user.role?.nom !== 'admin') {
       router.push('/403');
     }
   }, [user, router]);
@@ -259,7 +260,7 @@ export default function ValidateAttestationPage() {
     }
   };
 
-  if (!user || user.role?.nom !== 'Admin') {
+  if (!user || user.role?.nom !== 'admin') {
     return null;
   }
 

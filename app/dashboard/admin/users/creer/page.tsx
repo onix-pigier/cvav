@@ -1,10 +1,10 @@
-//app/dashboard/admin/users/creer/page.tsx
+//app/dashboard/admin/users/creer/page.tsx - AVEC SECTEURS/PAROISSES
 'use client';
 
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { SECTEURS, useSecteurParoisse } from '@/lib/secteurs-paroisses';
 
-// --- TYPES ---
 interface Role {
   _id: string;
   nom: string;
@@ -17,8 +17,6 @@ interface UtilisateurFormData {
   email: string;
   roleId: string;
   telephone: string;
-  paroisse: string;
-  secteur: string;
 }
 
 interface ValidationErrors {
@@ -27,11 +25,10 @@ interface ValidationErrors {
   email?: string;
   roleId?: string;
   telephone?: string;
-  paroisse?: string;
   secteur?: string;
+  paroisse?: string;
 }
 
-// --- COMPOSANT PRINCIPAL ---
 export default function CreationUtilisateurPage() {
   const router = useRouter();
   const [roles, setRoles] = useState<Role[]>([]);
@@ -40,22 +37,20 @@ export default function CreationUtilisateurPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
-  const [showPassword, setShowPassword] = useState(false);
 
-  // Données du formulaire
+  // ✅ Hook pour gérer secteur/paroisse
+  const { secteur, setSecteur, paroisse, setParoisse, paroisses } = useSecteurParoisse();
+
   const [formData, setFormData] = useState<UtilisateurFormData>({
     prenom: '',
     nom: '',
     email: '',
     roleId: '',
-    telephone: '',
-    paroisse: '',
-    secteur: ''
+    telephone: ''
   });
 
   const [errors, setErrors] = useState<ValidationErrors>({});
 
-  // Récupération des rôles
   useEffect(() => {
     const fetchRoles = async () => {
       try {
@@ -73,8 +68,7 @@ export default function CreationUtilisateurPage() {
     fetchRoles();
   }, []);
 
-  // Validation en temps réel
-  const validateField = (name: keyof UtilisateurFormData, value: string): string => {
+  const validateField = (name: keyof (UtilisateurFormData & { secteur: string; paroisse: string }), value: string): string => {
     switch (name) {
       case 'prenom':
         if (!value.trim()) return 'Le prénom est requis';
@@ -101,12 +95,12 @@ export default function CreationUtilisateurPage() {
         }
         return '';
       
-      case 'paroisse':
-        if (!value.trim()) return 'La paroisse est requise';
-        return '';
-      
       case 'secteur':
         if (!value.trim()) return 'Le secteur est requis';
+        return '';
+      
+      case 'paroisse':
+        if (!value.trim()) return 'La paroisse est requise';
         return '';
       
       default:
@@ -114,11 +108,9 @@ export default function CreationUtilisateurPage() {
     }
   };
 
-  // Gestion des changements de champs
   const handleInputChange = (field: keyof UtilisateurFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Validation en temps réel
     const error = validateField(field, value);
     setErrors(prev => ({
       ...prev,
@@ -126,7 +118,6 @@ export default function CreationUtilisateurPage() {
     }));
   };
 
-  // Validation du step actuel
   const validateStep = (step: number): boolean => {
     const newErrors: ValidationErrors = {};
     
@@ -136,17 +127,17 @@ export default function CreationUtilisateurPage() {
         if (error) newErrors[field as keyof ValidationErrors] = error;
       });
     } else if (step === 2) {
-      ['paroisse', 'secteur'].forEach(field => {
-        const error = validateField(field as keyof UtilisateurFormData, formData[field as keyof UtilisateurFormData]);
-        if (error) newErrors[field as keyof ValidationErrors] = error;
-      });
+      const secteurError = validateField('secteur', secteur);
+      if (secteurError) newErrors.secteur = secteurError;
+      
+      const paroisseError = validateField('paroisse', paroisse);
+      if (paroisseError) newErrors.paroisse = paroisseError;
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Navigation entre les steps
   const nextStep = () => {
     if (validateStep(currentStep)) {
       setCurrentStep(prev => Math.min(prev + 1, 3));
@@ -157,14 +148,12 @@ export default function CreationUtilisateurPage() {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  // Soumission du formulaire
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     setSuccess(null);
 
-    // Validation finale
     if (!validateStep(1) || !validateStep(2)) {
       setError('Veuillez corriger les erreurs dans le formulaire');
       setSubmitting(false);
@@ -176,7 +165,11 @@ export default function CreationUtilisateurPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          secteur,
+          paroisse
+        }),
       });
 
       const result = await response.json();
@@ -184,7 +177,6 @@ export default function CreationUtilisateurPage() {
       if (response.ok) {
         setSuccess(`Utilisateur ${formData.prenom} ${formData.nom} créé avec succès !`);
         
-        // Redirection après succès
         setTimeout(() => {
           router.push('/dashboard/admin/users');
         }, 2000);
@@ -198,11 +190,10 @@ export default function CreationUtilisateurPage() {
     }
   };
 
-  // Indicateur de progression
   const steps = [
     { number: 1, title: 'Informations personnelles', icon: '👤' },
     { number: 2, title: 'Localisation', icon: '📍' },
-    { number: 3, title: 'Confirmation', icon: '' }
+    { number: 3, title: 'Confirmation', icon: '✓' }
   ];
 
   if (loading) {
@@ -220,7 +211,6 @@ export default function CreationUtilisateurPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         
-        {/* En-tête */}
         <header className="text-center mb-12 animate-fade-in">
           <div className="inline-flex items-center gap-4 bg-white/80 backdrop-blur-sm px-8 py-6 rounded-2xl shadow-lg border border-blue-100">
             <div className="p-3 bg-blue-100 rounded-xl">
@@ -240,7 +230,6 @@ export default function CreationUtilisateurPage() {
           <div className="flex items-center justify-between">
             {steps.map((step, index) => (
               <div key={step.number} className="flex items-center flex-1">
-                {/* Étape */}
                 <div className={`flex flex-col items-center relative z-10 ${
                   step.number === currentStep ? 'scale-110' : ''
                 } transition-transform duration-300`}>
@@ -263,7 +252,6 @@ export default function CreationUtilisateurPage() {
                   </span>
                 </div>
                 
-                {/* Ligne de connexion */}
                 {index < steps.length - 1 && (
                   <div className="flex-1 h-1 mx-2 bg-gray-200 rounded-full overflow-hidden">
                     <div 
@@ -278,7 +266,6 @@ export default function CreationUtilisateurPage() {
           </div>
         </div>
 
-        {/* Messages d'alerte */}
         {error && (
           <div className="animate-slide-down mb-6 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl flex items-center gap-3">
             <span className="text-xl">⚠️</span>
@@ -297,14 +284,12 @@ export default function CreationUtilisateurPage() {
           </div>
         )}
 
-        {/* Formulaire */}
         <form onSubmit={handleSubmit} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-100 p-8 animate-fade-in-up">
           
           {/* STEP 1: Informations personnelles */}
           {currentStep === 1 && (
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Prénom */}
                 <div>
                   <label htmlFor="prenom" className="block text-sm font-medium text-gray-700 mb-2">
                     Prénom <span className="text-red-500">*</span>
@@ -324,7 +309,6 @@ export default function CreationUtilisateurPage() {
                   )}
                 </div>
 
-                {/* Nom */}
                 <div>
                   <label htmlFor="nom" className="block text-sm font-medium text-gray-700 mb-2">
                     Nom <span className="text-red-500">*</span>
@@ -345,7 +329,6 @@ export default function CreationUtilisateurPage() {
                 </div>
               </div>
 
-              {/* Email */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                   Email <span className="text-red-500">*</span>
@@ -365,7 +348,6 @@ export default function CreationUtilisateurPage() {
                 )}
               </div>
 
-              {/* Rôle */}
               <div>
                 <label htmlFor="roleId" className="block text-sm font-medium text-gray-700 mb-2">
                   Rôle <span className="text-red-500">*</span>
@@ -390,7 +372,6 @@ export default function CreationUtilisateurPage() {
                 )}
               </div>
 
-              {/* Téléphone */}
               <div>
                 <label htmlFor="telephone" className="block text-sm font-medium text-gray-700 mb-2">
                   Téléphone
@@ -403,7 +384,7 @@ export default function CreationUtilisateurPage() {
                   className={`w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.telephone ? 'border-red-500 bg-red-50' : 'border-gray-300'
                   }`}
-                  placeholder="+33 1 23 45 67 89"
+                  placeholder="+225 00 00 00 00 00"
                 />
                 {errors.telephone && (
                   <p className="text-red-500 text-sm mt-2 animate-pulse">⚠️ {errors.telephone}</p>
@@ -412,47 +393,64 @@ export default function CreationUtilisateurPage() {
             </div>
           )}
 
-          {/* STEP 2: Localisation */}
+          {/* STEP 2: Localisation avec Secteur/Paroisse */}
           {currentStep === 2 && (
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Paroisse */}
-                <div>
-                  <label htmlFor="paroisse" className="block text-sm font-medium text-gray-700 mb-2">
-                    Paroisse <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="paroisse"
-                    type="text"
-                    value={formData.paroisse}
-                    onChange={(e) => handleInputChange('paroisse', e.target.value)}
-                    className={`w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                      errors.paroisse ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
-                    placeholder="Notre-Dame de Paris"
-                  />
-                  {errors.paroisse && (
-                    <p className="text-red-500 text-sm mt-2 animate-pulse">⚠️ {errors.paroisse}</p>
-                  )}
-                </div>
-
-                {/* Secteur */}
+                {/* ✅ Secteur (liste déroulante) */}
                 <div>
                   <label htmlFor="secteur" className="block text-sm font-medium text-gray-700 mb-2">
                     Secteur <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <select
                     id="secteur"
-                    type="text"
-                    value={formData.secteur}
-                    onChange={(e) => handleInputChange('secteur', e.target.value)}
+                    value={secteur}
+                    onChange={(e) => {
+                      setSecteur(e.target.value);
+                      const error = validateField('secteur', e.target.value);
+                      setErrors(prev => ({ ...prev, secteur: error }));
+                    }}
                     className={`w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.secteur ? 'border-red-500 bg-red-50' : 'border-gray-300'
                     }`}
-                    placeholder="Paris Centre"
-                  />
+                  >
+                    <option value="">Sélectionnez un secteur</option>
+                    {SECTEURS.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                   {errors.secteur && (
                     <p className="text-red-500 text-sm mt-2 animate-pulse">⚠️ {errors.secteur}</p>
+                  )}
+                </div>
+
+                {/* ✅ Paroisse (dépend du secteur) */}
+                <div>
+                  <label htmlFor="paroisse" className="block text-sm font-medium text-gray-700 mb-2">
+                    Paroisse <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="paroisse"
+                    value={paroisse}
+                    onChange={(e) => {
+                      setParoisse(e.target.value);
+                      const error = validateField('paroisse', e.target.value);
+                      setErrors(prev => ({ ...prev, paroisse: error }));
+                    }}
+                    disabled={!secteur}
+                    className={`w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      errors.paroisse ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">
+                      {secteur ? 'Sélectionnez une paroisse' : 'Sélectionnez d\'abord un secteur'}
+                    </option>
+                    {paroisses.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                  {errors.paroisse && (
+                    <p className="text-red-500 text-sm mt-2 animate-pulse">⚠️ {errors.paroisse}</p>
                   )}
                 </div>
               </div>
@@ -465,7 +463,7 @@ export default function CreationUtilisateurPage() {
               <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-green-100 rounded-lg">
-                    <span className="text-2xl"></span>
+                    <span className="text-2xl">✓</span>
                   </div>
                   <h3 className="text-xl font-semibold text-green-800">Récapitulatif</h3>
                 </div>
@@ -493,12 +491,12 @@ export default function CreationUtilisateurPage() {
                       <p className="text-gray-800">{formData.telephone || 'Non renseigné'}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-600">Paroisse:</span>
-                      <p className="text-gray-800">{formData.paroisse}</p>
+                      <span className="font-medium text-gray-600">Secteur:</span>
+                      <p className="text-gray-800">{secteur}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-600">Secteur:</span>
-                      <p className="text-gray-800">{formData.secteur}</p>
+                      <span className="font-medium text-gray-600">Paroisse:</span>
+                      <p className="text-gray-800">{paroisse}</p>
                     </div>
                   </div>
                 </div>
@@ -556,7 +554,6 @@ export default function CreationUtilisateurPage() {
         </form>
       </div>
 
-      {/* Styles d'animation */}
       <style jsx>{`
         @keyframes fade-in {
           from { opacity: 0; transform: translateY(10px); }

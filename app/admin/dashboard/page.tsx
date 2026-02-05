@@ -67,7 +67,7 @@ export default function AdminDashboardPage() {
 
   // Vérifier que l'utilisateur est admin
   useEffect(() => {
-    if (user && user.role?.nom !== 'Admin') {
+    if (user && user.role?.nom !== 'admin') {
       router.push('/403');
     }
   }, [user, router]);
@@ -108,12 +108,12 @@ export default function AdminDashboardPage() {
       }
     };
 
-    if (user?.role?.nom === 'Admin') {
+    if (user?.role?.nom === 'admin') {
       fetchStats();
     }
   }, [user]);
 
-  if (!user || user.role?.nom !== 'Admin') {
+  if (!user || user.role?.nom !== 'admin') {
     return null;
   }
 

@@ -1,4 +1,4 @@
-// app/dashboard/admin/users/[id]/page.tsx - VERSION FINALE CORRIGÉE
+// app/dashboard/admin/users/[id]/page.tsx - AVEC SECTEURS/PAROISSES ET PROTECTION ADMIN
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,6 +8,7 @@ import {
   Calendar, Key, Power, Activity, Clock, User, ShieldAlert
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import { SECTEURS, useSecteurParoisse } from '@/lib/secteurs-paroisses';
 
 interface Utilisateur {
   _id: string;
@@ -49,9 +50,11 @@ export default function UserDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    prenom: '', nom: '', email: '', telephone: '',
-    paroisse: '', secteur: '', roleId: ''
+    prenom: '', nom: '', email: '', telephone: '', roleId: ''
   });
+
+  // ✅ Hook pour gérer secteur/paroisse
+  const { secteur, setSecteur, paroisse, setParoisse, paroisses } = useSecteurParoisse();
 
   useEffect(() => {
     fetchData();
@@ -74,10 +77,9 @@ export default function UserDetailPage() {
     try {
       setLoading(true);
       
-      const [userRes, rolesRes, logsRes] = await Promise.all([
+      const [userRes, rolesRes] = await Promise.all([
         fetch(`/api/users/${params.id}`, { credentials: 'include' }),
         fetch('/api/roles', { credentials: 'include' }),
-        fetch(`/api/users/${params.id}/logs`, { credentials: 'include' }).catch(() => ({ ok: false }))
       ]);
 
       if (!userRes.ok) {
@@ -89,27 +91,36 @@ export default function UserDetailPage() {
       const userData = await userRes.json();
       const rolesData = await rolesRes.json();
       
-      // Marquer admin système
+      // ✅ Marquer admin système (email admin@cvav.com avec rôle admin)
       const userWithProtection = {
         ...userData,
-        estAdminSysteme: userData.role.nom.toLowerCase() === 'admin' && userData.email === 'admin@cvav.com'
+        estAdminSysteme: 
+          userData.role.nom.toLowerCase() === 'admin' && 
+          userData.email.toLowerCase() === 'admin@cvav.com'
       };
       
       setUser(userWithProtection);
       setRoles(rolesData);
+      
+      // ✅ Initialiser le formulaire ET secteur/paroisse
       setFormData({
         prenom: userData.prenom,
         nom: userData.nom,
         email: userData.email,
         telephone: userData.telephone || '',
-        paroisse: userData.paroisse,
-        secteur: userData.secteur,
         roleId: userData.role._id
       });
 
+      // ✅ Initialiser secteur/paroisse (important pour la cascade)
+      setSecteur(userData.secteur || '');
+      setParoisse(userData.paroisse || '');
+      try {
+        const logsRes = await fetch(`/api/users/${params.id}/logs`, { credentials: 'include' });
       if (logsRes.ok) {
-        const logsData = logsRes.ok && 'json' in logsRes ? await logsRes.json() : [];
+        const logsData = await logsRes.json();
         setLogs(logsData.slice(0, 15));
+      }} catch (logsError) {
+        console.error('Erreur récupération logs:', logsError);
       }
     } catch (error: any) {
       toast.error('Erreur lors du chargement');
@@ -120,10 +131,20 @@ export default function UserDetailPage() {
   };
 
   const handleSave = async () => {
+    // ✅ Protection admin système
     if (user?.estAdminSysteme) {
       toast.error('L\'administrateur système ne peut pas être modifié', {
         icon: '🔒',
         duration: 4000
+      });
+      return;
+    }
+
+    // ✅ Validation secteur/paroisse
+    if (!secteur || !paroisse) {
+      toast.error('Le secteur et la paroisse sont requis', {
+        icon: '⚠️',
+        duration: 3000
       });
       return;
     }
@@ -137,7 +158,11 @@ export default function UserDetailPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          secteur,
+          paroisse
+        })
       });
 
       if (!res.ok) {
@@ -329,7 +354,19 @@ export default function UserDetailPage() {
             {isEditing && (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsEditing(false)}
+                  onClick={() => {
+                    setIsEditing(false);
+                    // Réinitialiser les valeurs
+                    setFormData({
+                      prenom: user.prenom,
+                      nom: user.nom,
+                      email: user.email,
+                      telephone: user.telephone || '',
+                      roleId: user.role._id
+                    });
+                    setSecteur(user.secteur);
+                    setParoisse(user.paroisse);
+                  }}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors"
                 >
                   <X className="h-4 w-4" />
@@ -419,21 +456,58 @@ export default function UserDetailPage() {
                       placeholder="Non renseigné"
                     />
 
+                    {/* ✅ SECTEUR ET PAROISSE AVEC CASCADE */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field
-                        icon={MapPin}
-                        label="Paroisse"
-                        value={formData.paroisse}
-                        onChange={(v: any ) => setFormData({...formData, paroisse: v})}
-                        disabled={!isEditing || user.estAdminSysteme}
-                      />
-                      <Field
-                        icon={MapPin}
-                        label="Secteur"
-                        value={formData.secteur}
-                        onChange={(v: any) => setFormData({...formData, secteur: v})}
-                        disabled={!isEditing || user.estAdminSysteme}
-                      />
+                      {/* Secteur */}
+                      <div>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                          <MapPin className="h-3.5 w-3.5" />
+                          Secteur
+                        </label>
+                        {isEditing && !user.estAdminSysteme ? (
+                          <select
+                            value={secteur}
+                            onChange={(e) => setSecteur(e.target.value)}
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                          >
+                            <option value="">Sélectionnez un secteur</option>
+                            {SECTEURS.map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="px-3 py-2.5 bg-slate-50 rounded-lg text-sm text-slate-700">
+                            {user.secteur}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Paroisse (dépend du secteur) */}
+                      <div>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                          <MapPin className="h-3.5 w-3.5" />
+                          Paroisse
+                        </label>
+                        {isEditing && !user.estAdminSysteme ? (
+                          <select
+                            value={paroisse}
+                            onChange={(e) => setParoisse(e.target.value)}
+                            disabled={!secteur}
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <option value="">
+                              {secteur ? 'Sélectionnez une paroisse' : 'Sélectionnez d\'abord un secteur'}
+                            </option>
+                            {paroisses.map(p => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="px-3 py-2.5 bg-slate-50 rounded-lg text-sm text-slate-700">
+                            {user.paroisse}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Rôle */}
@@ -572,18 +646,18 @@ export default function UserDetailPage() {
                   Permissions
                 </h3>
                 <p className="text-xs text-slate-600 mb-3">
-                  {user.role.permissions.length} permissions actives
+                  {user.role.permissions?.length || 0} permissions actives
                 </p>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                  {user.role.permissions.slice(0, 10).map((perm, idx) => (
+                  {(user.role.permissions || []).slice(0, 10).map((perm, idx) => (
                     <div key={idx} className="flex items-start gap-2 text-xs text-slate-600">
                       <div className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
                       <span className="break-words">{perm.replace(/_/g, ' ')}</span>
                     </div>
                   ))}
-                  {user.role.permissions.length > 10 && (
+                  {(user.role.permissions?.length || 0) > 10 && (
                     <p className="text-xs text-slate-400 pt-2">
-                      +{user.role.permissions.length - 10} autres...
+                      +{(user.role.permissions?.length || 0) - 10} autres...
                     </p>
                   )}
                 </div>

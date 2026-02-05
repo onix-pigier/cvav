@@ -1,6 +1,7 @@
+// app/admin/attestations/page.tsx - VERSION FINALE CORRIGÉE
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -34,36 +35,78 @@ interface Attestation {
 }
 
 export default function AdminAttestationsPage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
   const [attestations, setAttestations] = useState<Attestation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'en_attente' | 'valide' | 'rejete' | 'tous'>('en_attente');
 
-  // Vérifier que l'utilisateur est admin
+  // ✅ CORRECTION : Utiliser useMemo pour stabiliser isAdmin
+  const isAdmin = useMemo(() => {
+    return user?.role?.nom?.toLowerCase() === 'admin';
+  }, [user?.role?.nom]);
+
+  // Debug
   useEffect(() => {
-    if (user && user.role?.nom !== 'Admin') {
-      router.push('/403');
-    }
-  }, [user, router]);
+    console.log('🔍 Admin Attestations - État:', {
+      isLoading,
+      hasUser: !!user,
+      userEmail: user?.email,
+      roleName: user?.role?.nom,
+      isAdmin
+    });
+  }, [user, isLoading, isAdmin]);
 
   // Récupérer les attestations
   useEffect(() => {
+    // ✅ Attendre que le chargement soit terminé
+    if (isLoading) {
+      console.log('⏳ En chargement...');
+      return;
+    }
+
+    // ✅ Vérifier l'utilisateur
+    if (!user) {
+      console.log('❌ Pas d\'utilisateur - Redirection login');
+      router.push('/login');
+      return;
+    }
+
+    // ✅ Vérifier admin
+    if (!isAdmin) {
+      console.log('❌ Pas admin:', {
+        email: user.email,
+        role: user.role?.nom,
+        isAdmin
+      });
+      router.push('/403');
+      return;
+    }
+
+    // ✅ Admin confirmé - Charger les données
+    console.log('✅ Admin confirmé - Chargement des attestations');
+
     const fetchAttestations = async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/attestations?view=soumises');
+        const res = await fetch('/api/attestations?view=soumises', {
+          credentials: 'include'
+        });
         
         if (!res.ok) {
-          console.error('Erreur lors de la récupération');
+          console.error('❌ Erreur API:', res.status);
+          if (res.status === 403) {
+            console.log('❌ 403 API - Vérifier les permissions backend');
+          }
           setAttestations([]);
           return;
         }
 
         const data = await res.json();
+        console.log('✅ Attestations chargées:', data.length);
         setAttestations(data || []);
       } catch (error) {
-        console.error('Erreur:', error);
+        console.error('❌ Erreur:', error);
         setAttestations([]);
       } finally {
         setLoading(false);
@@ -71,12 +114,14 @@ export default function AdminAttestationsPage() {
     };
 
     fetchAttestations();
-  }, []);
+  }, [user, isLoading, isAdmin, router]);
 
   // Filtrer les attestations
-  const filtered = filter === 'tous' 
-    ? attestations
-    : attestations.filter(a => a.statut === filter);
+  const filtered = useMemo(() => {
+    return filter === 'tous' 
+      ? attestations
+      : attestations.filter(a => a.statut === filter);
+  }, [attestations, filter]);
 
   const handleValidate = (id: string) => {
     router.push(`/admin/attestations/${id}/valider`);
@@ -100,16 +145,64 @@ export default function AdminAttestationsPage() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  if (!user || user.role?.nom !== 'Admin') {
-    return null;
+  // ✅ Pendant le chargement
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Vérification des permissions...</p>
+        </div>
+      </div>
+    );
   }
 
-  const stats = {
+  // ✅ Si pas connecté
+  if (!user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Non authentifié</p>
+          <Button onClick={() => router.push('/login')}>
+            Se connecter
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Si pas admin
+  if (!isAdmin) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="text-red-600">🚫 Accès Refusé</CardTitle>
+            <CardDescription>
+              Cette page est réservée aux administrateurs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-gray-100 p-3 rounded text-sm mb-4">
+              <p><strong>Votre rôle :</strong> {user?.role?.nom || 'Inconnu'}</p>
+              <p><strong>Email :</strong> {user?.email}</p>
+            </div>
+            <Button onClick={() => router.push('/dashboard')} className="w-full">
+              ← Retour au tableau de bord
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ✅ Statistiques
+  const stats = useMemo(() => ({
     total: attestations.length,
     enAttente: attestations.filter(a => a.statut === 'en_attente').length,
     validees: attestations.filter(a => a.statut === 'valide').length,
     rejetees: attestations.filter(a => a.statut === 'rejete').length,
-  };
+  }), [attestations]);
 
   return (
     <div className="space-y-6">
@@ -188,7 +281,6 @@ export default function AdminAttestationsPage() {
       {/* Liste */}
       <div className="space-y-3">
         {loading ? (
-          // Skeleton loaders
           <>
             {[1, 2, 3].map(i => (
               <Card key={i}>
@@ -295,30 +387,24 @@ export default function AdminAttestationsPage() {
         )}
       </div>
 
-      {/* Stats */}
+      {/* Stats finales */}
       {!loading && attestations.length > 0 && (
         <div className="grid grid-cols-3 gap-4 pt-6 border-t">
           <Card>
             <CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-yellow-600">
-                {attestations.filter(a => a.statut === 'en_attente').length}
-              </p>
+              <p className="text-2xl font-bold text-yellow-600">{stats.enAttente}</p>
               <p className="text-sm text-gray-500">En attente de validation</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-green-600">
-                {attestations.filter(a => a.statut === 'valide').length}
-              </p>
+              <p className="text-2xl font-bold text-green-600">{stats.validees}</p>
               <p className="text-sm text-gray-500">Validées</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-red-600">
-                {attestations.filter(a => a.statut === 'rejete').length}
-              </p>
+              <p className="text-2xl font-bold text-red-600">{stats.rejetees}</p>
               <p className="text-sm text-gray-500">Rejetées</p>
             </CardContent>
           </Card>

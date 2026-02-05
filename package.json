@@ -9,8 +9,11 @@
     "start": "next start",
     "lint": "eslint",
     "test:email": "node scripts/test-email.js",
-    "seed": "tsx scripts/seed-admin.ts",
+    "seed-admin": "tsx scripts/seed-admin.ts",
+    "reset-database": "tsx scripts/reset-database.ts",
+    "seed-all" : "tsx scripts/seed-database.ts",
     "dev:email": "npm run test:email",
+    "test-admin": "tsx tests/test-admin.ts",
     "models": "tsx scripts/mesmodels.ts",
     "reset": "tsx scripts/reset-password.ts",
     "check:errors": "tsc --noEmit"

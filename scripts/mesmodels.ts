@@ -1,6 +1,6 @@
 // scripts/list-all-models.ts
 import 'dotenv/config';
-import { connectDB } from '@/lib/db';
+import { connectDB } from '../lib/db';
 import mongoose from 'mongoose';
 
 async function listAllModels() {
@@ -76,7 +76,7 @@ async function listAllModels() {
     if (orphanedCollections.length > 0) {
       console.log(`\nAttention : Collections présentes dans la DB mais sans modèle Mongoose chargé :`);
       orphanedCollections.forEach(col => console.log(`   → ${col}`));
-      console.log(`\nTip : Importe le fichier models/${col}.ts quelque part pour les charger !`);
+      console.log(`\nTip : Importe le fichier models/${orphanedCollections[0]}.ts quelque part pour les charger !`);
     }
 
     console.log('\nTout est bon !');

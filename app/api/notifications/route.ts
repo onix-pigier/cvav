@@ -83,17 +83,16 @@
 //     }, { status: 500 });
 //   }
 // }
-//app/api/notifications/route.ts
+//app/api/notifications/route.ts - VERSION CORRIGÉE
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { voirPermission } from "@/utils/permission";
+import { voirPermission, estAdmin } from "@/utils/permission";
 import { getUserFromToken } from "@/utils/auth";
 import Notification from "@/models/notification";
 
-// ──────────────────────────────────────────────
-// GET → Lister les notifications de l'utilisateur
-// URL: /api/notifications
-// ──────────────────────────────────────────────
+// ============================================
+// GET - Lister les notifications
+// ============================================
 export async function GET(request: Request) {
     try {
         await connectDB();
@@ -103,72 +102,102 @@ export async function GET(request: Request) {
             return NextResponse.json({ message: "Non authentifié." }, { status: 401 });
         }
 
-        // Vérification de la permission de voir les notifications
-        // La permission "voir_notifications" est définie pour 'utilisateur' et 'admin'.
-        if (!voirPermission(currentUser, "voir_notifications")) {
-            return NextResponse.json({ message: "Accès refusé. Permission manquante." }, { status: 403 });
+        // ✅ CORRIGÉ : Vérification des permissions avec admin bypass
+        const peutVoir = 
+            estAdmin(currentUser) ||
+            voirPermission(currentUser, "voir_mes_notifications") ||
+            voirPermission(currentUser, "voir_toute_notification");
+
+        if (!peutVoir) {
+            return NextResponse.json({ 
+                message: "Accès refusé. Permission manquante." 
+            }, { status: 403 });
         }
 
-        // Le filtre assure que l'utilisateur ne voit que ses propres notifications
-        const filtre = { utilisateur: currentUser._id };
+        // Filtrage selon le rôle
+        let filtre: any = {};
+        
+        if (estAdmin(currentUser) && voirPermission(currentUser, "voir_toute_notification")) {
+            // Admin peut voir toutes les notifications
+            filtre = {};
+        } else {
+            // Utilisateur voit seulement ses notifications
+            filtre = { utilisateur: currentUser._id };
+        }
 
         const notifications = await Notification.find(filtre)
+            .populate('emetteur', 'prenom nom email')
             .sort({ createdAt: -1 })
-            // Limiter la requête si la performance est un problème, par exemple: .limit(50)
-            .limit(50); 
+            .limit(50);
         
-        // IMPORTANT : Retourne directement le tableau (Array) pour correspondre au modèle simple
-        // utilisé dans le front-end du composant AttestationsPage.tsx.
         return NextResponse.json(notifications);
 
     } catch (error) {
-        console.error("Erreur liste notifications:", error);
+        console.error("❌ Erreur liste notifications:", error);
         return NextResponse.json({ 
             message: "Erreur lors de la récupération des notifications." 
         }, { status: 500 });
     }
 }
 
-// ──────────────────────────────────────────────
-// PATCH → Marquer une/des notification(s) comme lue(s)
-// URL: /api/notifications
-// Body: { id?: string, all?: boolean }
-// ──────────────────────────────────────────────
+// ============================================
+// PATCH - Marquer comme lu(e)
+// ============================================
 export async function PATCH(request: Request) {
     try {
         await connectDB();
         const currentUser = await getUserFromToken(request);
-        const { id, all } = await request.json(); // id pour une seule, all=true pour toutes
-
+        
         if (!currentUser) {
             return NextResponse.json({ message: "Non authentifié." }, { status: 401 });
         }
 
-        // Vérification de la permission de marquer comme lue
-        if (!voirPermission(currentUser, "marquer_notification_comme_lue")) {
-            return NextResponse.json({ message: "Accès refusé. Permission manquante." }, { status: 403 });
+        const { id, all } = await request.json();
+
+        // ✅ CORRIGÉ : Vérification des permissions
+        const peutMarquer = 
+            estAdmin(currentUser) ||
+            voirPermission(currentUser, "marquer_mes_notifications_comme_lues") ||
+            voirPermission(currentUser, "marquer_toute_notification_comme_lue");
+
+        if (!peutMarquer) {
+            return NextResponse.json({ 
+                message: "Accès refusé. Permission manquante." 
+            }, { status: 403 });
         }
 
         let updateResult;
 
         if (all) {
-            // Option 1: Marquer TOUTES les notifications non lues de l'utilisateur comme lues
+            // Marquer toutes comme lues
+            const filter = estAdmin(currentUser) 
+                ? { lu: false }  // Admin peut marquer toutes
+                : { utilisateur: currentUser._id, lu: false };  // User marque les siennes
+            
             updateResult = await Notification.updateMany(
-                { utilisateur: currentUser._id, lu: false },
+                filter,
                 { $set: { lu: true } }
             );
         } else if (id) {
-            // Option 2: Marquer une notification spécifique comme lue
+            // Marquer une seule notification
+            const filter = estAdmin(currentUser)
+                ? { _id: id }  // Admin peut marquer n'importe laquelle
+                : { _id: id, utilisateur: currentUser._id };  // User seulement la sienne
+            
             updateResult = await Notification.updateOne(
-                { _id: id, utilisateur: currentUser._id }, // S'assurer que l'utilisateur possède la notification
+                filter,
                 { $set: { lu: true } }
             );
         } else {
-            return NextResponse.json({ message: "ID ou paramètre 'all' requis." }, { status: 400 });
+            return NextResponse.json({ 
+                message: "ID ou paramètre 'all' requis." 
+            }, { status: 400 });
         }
 
         if (updateResult.modifiedCount === 0 && !all) {
-            return NextResponse.json({ message: "Notification non trouvée ou déjà lue." }, { status: 404 });
+            return NextResponse.json({ 
+                message: "Notification non trouvée ou déjà lue." 
+            }, { status: 404 });
         }
 
         return NextResponse.json({ 
@@ -177,9 +206,9 @@ export async function PATCH(request: Request) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error("Erreur mise à jour notification:", error);
+        console.error("❌ Erreur mise à jour notification:", error);
         return NextResponse.json({ 
             message: "Erreur lors de la mise à jour des notifications." 
         }, { status: 500 });
     }
-} 
+}

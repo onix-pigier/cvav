@@ -1,3 +1,4 @@
+//app/admin/ceremonies/[id]/valider/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -57,7 +58,7 @@ export default function ValidateCeremonyPage() {
 
   // Vérifier accès admin
   useEffect(() => {
-    if (user && user.role?.nom !== 'Admin') {
+    if (user && user.role?.nom !== 'admin') {
       router.push('/403');
     }
   }, [user, router]);
@@ -246,7 +247,7 @@ export default function ValidateCeremonyPage() {
     }
   };
 
-  if (!user || user.role?.nom !== 'Admin') {
+  if (!user || user.role?.nom !== 'admin') {
     return null;
   }
 

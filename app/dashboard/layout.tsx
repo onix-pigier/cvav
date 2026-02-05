@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { Toaster } from "@/components/ui/sonner"
 import Sidebar, { SidebarItem, useSidebarContext } from "@/components/sidebar";
@@ -56,7 +56,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
           </div>
           
-          {can("voir_tableau_de_bord") && (
+          {/* ✅ CORRIGÉ : voir_dashboard au lieu de voir_tableau_de_bord */}
+          {can("voir_dashboard") && (
             <SidebarItem
               icon={<LayoutDashboard size={20} />}
               text="Tableau de bord" 
@@ -64,7 +65,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             />
           )}
           
-          {can("voir_statistiques") && (
+          {/* ✅ CORRIGÉ : voir_statistiques_avancees au lieu de voir_statistiques */}
+          {can("voir_statistiques_avancees") && (
             <SidebarItem
               icon={<BarChart size={20} />} 
               text="Statistiques" 
@@ -158,7 +160,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               />
             )}
 
-            {can("voir_tout_parametre_systeme") && (
+            {can("gerer_parametres_systeme") && (
               <SidebarItem 
                 icon={<Settings size={20} />} 
                 text="Paramètres système" 

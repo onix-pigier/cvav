@@ -1,3 +1,5 @@
+// models/utilisateur.ts
+
 import mongoose, { Document } from "mongoose";
 const { Schema, model } = mongoose; // <-- retirer 'models'
 import bcrypt from "bcryptjs";

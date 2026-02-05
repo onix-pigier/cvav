@@ -1,3 +1,4 @@
+// models/role.ts
 import mongoose, { Document } from "mongoose";
 const { Schema, model } = mongoose;
 
